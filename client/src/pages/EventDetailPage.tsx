@@ -229,7 +229,12 @@ export function EventDetailPage() {
           </TabsContent>
 
           <TabsContent value="bookings">
-            <BookingsPanel eventId={eventId} onSelect={setViewBooking} refreshKey={refreshKey} />
+            <BookingsPanel
+              eventId={eventId}
+              onSelect={setViewBooking}
+              onSelectHold={setViewBlocked}
+              refreshKey={refreshKey}
+            />
           </TabsContent>
 
           <TabsContent value="reports">

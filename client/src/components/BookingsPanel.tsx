@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
-import { api, type BookedByOrg, type Booking, type PaymentStatus } from "../lib/api";
+import { api, type BookedByOrg, type Booking, type Hold } from "../lib/api";
 import { formatCurrency } from "../lib/format";
-import { ORG_LABEL, ORG_LABEL_SHORT, PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLES } from "../lib/status";
+import { ORG_LABEL, ORG_LABEL_SHORT, PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLES, STALL_STATUS_STYLES } from "../lib/status";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,13 @@ import { cn } from "@/lib/utils";
 interface Props {
   eventId: string;
   onSelect: (booking: Booking) => void;
+  onSelectHold: (hold: Hold) => void;
   refreshKey: number;
 }
 
 type OrgFilter = BookedByOrg | "ALL";
-type StatusFilter = PaymentStatus | "ALL";
+type StatusFilter = "PARTIAL" | "PAID" | "BLOCKED" | "ALL";
+type Row = { kind: "booking"; booking: Booking } | { kind: "hold"; hold: Hold };
 
 const ORG_FILTERS: { value: OrgFilter; label: string }[] = [
   { value: "ALL", label: "All" },
@@ -28,25 +30,48 @@ const ORG_FILTERS: { value: OrgFilter; label: string }[] = [
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "ALL", label: "All" },
-  { value: "UNPAID", label: PAYMENT_STATUS_LABEL.UNPAID },
   { value: "PARTIAL", label: PAYMENT_STATUS_LABEL.PARTIAL },
   { value: "PAID", label: PAYMENT_STATUS_LABEL.PAID },
+  { value: "BLOCKED", label: "Blocked" },
 ];
 
-export function BookingsPanel({ eventId, onSelect, refreshKey }: Props) {
-  const [bookings, setBookings] = useState<Booking[] | null>(null);
+function rowCreatedAt(row: Row) {
+  return row.kind === "booking" ? row.booking.createdAt : row.hold.createdAt;
+}
+
+export function BookingsPanel({ eventId, onSelect, onSelectHold, refreshKey }: Props) {
+  const [rows, setRows] = useState<Row[] | null>(null);
   const [q, setQ] = useState("");
   const [orgFilter, setOrgFilter] = useState<OrgFilter>("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
 
   useEffect(() => {
-    setBookings(null);
-    const params = {
+    setRows(null);
+    const commonParams = {
       ...(q ? { q } : {}),
       ...(orgFilter !== "ALL" ? { bookedByOrg: orgFilter } : {}),
-      ...(statusFilter !== "ALL" ? { paymentStatus: statusFilter } : {}),
     };
-    api.get<Booking[]>(`/events/${eventId}/bookings`, { params }).then((r) => setBookings(r.data));
+
+    const bookingsReq =
+      statusFilter === "BLOCKED"
+        ? Promise.resolve({ data: [] as Booking[] })
+        : api.get<Booking[]>(`/events/${eventId}/bookings`, {
+            params: { ...commonParams, ...(statusFilter !== "ALL" ? { paymentStatus: statusFilter } : {}) },
+          });
+
+    const holdsReq =
+      statusFilter === "ALL" || statusFilter === "BLOCKED"
+        ? api.get<Hold[]>(`/events/${eventId}/holds`, { params: commonParams })
+        : Promise.resolve({ data: [] as Hold[] });
+
+    Promise.all([bookingsReq, holdsReq]).then(([b, h]) => {
+      const combined: Row[] = [
+        ...b.data.map((booking): Row => ({ kind: "booking", booking })),
+        ...h.data.map((hold): Row => ({ kind: "hold", hold })),
+      ];
+      combined.sort((a, c) => new Date(rowCreatedAt(c)).getTime() - new Date(rowCreatedAt(a)).getTime());
+      setRows(combined);
+    });
   }, [eventId, q, orgFilter, statusFilter, refreshKey]);
 
   return (
@@ -66,7 +91,7 @@ export function BookingsPanel({ eventId, onSelect, refreshKey }: Props) {
         <FilterPillGroup label="Status" options={STATUS_FILTERS} value={statusFilter} onChange={setStatusFilter} />
       </div>
 
-      {bookings === null && (
+      {rows === null && (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-14 rounded-lg" />
@@ -74,7 +99,7 @@ export function BookingsPanel({ eventId, onSelect, refreshKey }: Props) {
         </div>
       )}
 
-      {bookings && bookings.length === 0 && (
+      {rows && rows.length === 0 && (
         <Card className="border-dashed">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No bookings match these filters.
@@ -82,7 +107,7 @@ export function BookingsPanel({ eventId, onSelect, refreshKey }: Props) {
         </Card>
       )}
 
-      {bookings && bookings.length > 0 && (
+      {rows && rows.length > 0 && (
         <>
           {/* Desktop table */}
           <Card className="hidden overflow-hidden md:block">
@@ -98,58 +123,99 @@ export function BookingsPanel({ eventId, onSelect, refreshKey }: Props) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bookings.map((b) => (
-                  <TableRow key={b.id} onClick={() => onSelect(b)} className="cursor-pointer">
-                    <TableCell>
-                      <div className="font-medium text-foreground">{b.exhibitorName}</div>
-                      <div className="text-xs text-muted-foreground">{b.phone}</div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {b.stalls.map((s) => s.stall.code).join(", ")}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{ORG_LABEL_SHORT[b.bookedByOrg]}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(b.totalAmount)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(b.amountPaid)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={PAYMENT_STATUS_STYLES[b.paymentStatus]}>
-                        {PAYMENT_STATUS_LABEL[b.paymentStatus]}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {rows.map((row) => {
+                  const d = rowDisplay(row);
+                  return (
+                    <TableRow
+                      key={`${row.kind}-${d.id}`}
+                      onClick={() => (row.kind === "booking" ? onSelect(row.booking) : onSelectHold(row.hold))}
+                      className="cursor-pointer"
+                    >
+                      <TableCell>
+                        <div className="font-medium text-foreground">{d.name}</div>
+                        <div className="text-xs text-muted-foreground">{d.phone}</div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{d.stallCodes}</TableCell>
+                      <TableCell className="text-muted-foreground">{d.org}</TableCell>
+                      <TableCell className="text-right">{d.total}</TableCell>
+                      <TableCell className="text-right">{d.paid}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={d.statusClass}>
+                          {d.statusLabel}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </Card>
 
           {/* Mobile cards */}
           <div className="space-y-2 md:hidden">
-            {bookings.map((b) => (
-              <Card key={b.id} onClick={() => onSelect(b)} className="cursor-pointer">
-                <CardContent className="space-y-1.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="font-medium text-foreground">{b.exhibitorName}</div>
-                      <div className="text-xs text-muted-foreground">{b.phone}</div>
+            {rows.map((row) => {
+              const d = rowDisplay(row);
+              return (
+                <Card
+                  key={`${row.kind}-${d.id}`}
+                  onClick={() => (row.kind === "booking" ? onSelect(row.booking) : onSelectHold(row.hold))}
+                  className="cursor-pointer"
+                >
+                  <CardContent className="space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-medium text-foreground">{d.name}</div>
+                        <div className="text-xs text-muted-foreground">{d.phone}</div>
+                      </div>
+                      <Badge variant="outline" className={d.statusClass}>
+                        {d.statusLabel}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className={PAYMENT_STATUS_STYLES[b.paymentStatus]}>
-                      {PAYMENT_STATUS_LABEL[b.paymentStatus]}
-                    </Badge>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {b.stalls.map((s) => s.stall.code).join(", ")} · {ORG_LABEL_SHORT[b.bookedByOrg]}
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total {formatCurrency(b.totalAmount)}</span>
-                    <span className="font-medium text-foreground">Paid {formatCurrency(b.amountPaid)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="text-xs text-muted-foreground">
+                      {d.stallCodes} · {d.org}
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total {d.total}</span>
+                      <span className="font-medium text-foreground">Paid {d.paid}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </>
       )}
     </div>
   );
+}
+
+function rowDisplay(row: Row) {
+  if (row.kind === "booking") {
+    const b = row.booking;
+    return {
+      id: b.id,
+      name: b.exhibitorName,
+      phone: b.phone,
+      stallCodes: b.stalls.map((s) => s.stall.code).join(", "),
+      org: ORG_LABEL_SHORT[b.bookedByOrg],
+      total: formatCurrency(b.totalAmount),
+      paid: formatCurrency(b.amountPaid),
+      statusLabel: PAYMENT_STATUS_LABEL[b.paymentStatus],
+      statusClass: PAYMENT_STATUS_STYLES[b.paymentStatus],
+    };
+  }
+  const h = row.hold;
+  return {
+    id: h.id,
+    name: h.exhibitorName || "Unnamed hold",
+    phone: h.phone || "—",
+    stallCodes: h.stalls.map((s) => s.stall.code).join(", "),
+    org: ORG_LABEL_SHORT[h.bookedByOrg],
+    total: "—",
+    paid: "—",
+    statusLabel: "Blocked",
+    statusClass: STALL_STATUS_STYLES.BLOCKED,
+  };
 }
 
 function FilterPillGroup<T extends string>({

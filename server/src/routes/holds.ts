@@ -15,6 +15,28 @@ const createHoldSchema = z.object({
   releaseAt: z.coerce.date().optional(),
 });
 
+// GET /api/events/:eventId/holds?q=&bookedByOrg= — powers the "Blocked" rows in the Bookings list.
+holdsRouter.get("/events/:eventId/holds", async (req, res) => {
+  const { q, bookedByOrg } = req.query;
+  const holds = await prisma.hold.findMany({
+    where: {
+      eventId: req.params.eventId,
+      ...(bookedByOrg ? { bookedByOrg: bookedByOrg as "MEC" | "CHAMBER_OF_COMMERCE" } : {}),
+      ...(q
+        ? {
+            OR: [
+              { exhibitorName: { contains: String(q), mode: "insensitive" } },
+              { phone: { contains: String(q) } },
+            ],
+          }
+        : {}),
+    },
+    include: { stalls: { include: { stall: true } }, activity: { orderBy: { createdAt: "desc" } } },
+    orderBy: { createdAt: "desc" },
+  });
+  res.json(holds);
+});
+
 holdsRouter.post("/events/:eventId/holds", async (req: AuthedRequest, res) => {
   const parsed = createHoldSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
