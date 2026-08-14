@@ -295,13 +295,13 @@ export function FloorPlan({
         </div>
 
         <div className="flex items-center gap-1">
-          <Button size="icon-sm" variant="outline" onClick={() => zoomTo(zoom / 1.3)} title="Zoom out">
+          <Button size="icon-sm" variant="outline" onClick={() => zoomTo(Math.round((zoom - 0.05) * 100) / 100)} title="Zoom out">
             <Minus />
           </Button>
           <span className="w-10 text-center text-[11px] font-semibold" style={{ color: INK.ink3 }}>
             {Math.round(zoom * 100)}%
           </span>
-          <Button size="icon-sm" variant="outline" onClick={() => zoomTo(zoom * 1.3)} title="Zoom in">
+          <Button size="icon-sm" variant="outline" onClick={() => zoomTo(Math.round((zoom + 0.05) * 100) / 100)} title="Zoom in">
             <Plus />
           </Button>
           <Button size="sm" variant="outline" onClick={fitToWidth}>
@@ -431,8 +431,8 @@ export function FloorPlan({
           className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg px-4 py-2.5 shadow-2xl"
           style={{ background: INK.ink, color: "#fff" }}
         >
-          <span className="text-xs font-semibold tracking-wide">
-            {fp.selected.size} stall{fp.selected.size > 1 ? "s" : ""} selected
+          <span className="max-w-[420px] truncate text-xs font-semibold tracking-wide" title={fp.selectedStalls.map((s) => s.code).join(", ")}>
+            {selectedStallsLabel(fp.selectedStalls)}
           </span>
           <span className="text-sm font-bold">{formatCurrency(fp.selectedTotal)}</span>
           <Button size="sm" variant="ghost" className="h-7 text-white hover:bg-white/10 hover:text-white" onClick={fp.clearSelection}>
@@ -451,6 +451,13 @@ export function FloorPlan({
       )}
     </div>
   );
+}
+
+function selectedStallsLabel(stalls: FloorPlanStall[]): string {
+  const codes = stalls.map((s) => s.code);
+  const MAX = 6;
+  if (codes.length <= MAX) return codes.join(", ");
+  return `${codes.slice(0, MAX).join(", ")} +${codes.length - MAX} more`;
 }
 
 function StatCell({ label, value, suffix, color }: { label: string; value: number; suffix?: string; color?: string }) {

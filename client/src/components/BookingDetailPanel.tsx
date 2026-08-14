@@ -40,6 +40,10 @@ export function BookingDetailPanel({ booking, onClose, onCancelled, onPaymentAdd
 
   async function addPayment() {
     setError(null);
+    if (Number(amount) > pending) {
+      setError(`Amount can't exceed the pending balance (${formatCurrency(pending)}).`);
+      return;
+    }
     setBusy(true);
     try {
       await api.post(`/bookings/${booking.id}/payments`, {
@@ -128,6 +132,8 @@ export function BookingDetailPanel({ booking, onClose, onCancelled, onPaymentAdd
                 <Input
                   type="number"
                   placeholder="Amount"
+                  min="1"
+                  max={pending}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="flex-1"

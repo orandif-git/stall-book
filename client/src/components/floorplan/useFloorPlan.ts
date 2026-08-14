@@ -33,6 +33,14 @@ export function useFloorPlan(eventId: string, refreshKey: number) {
     load();
   }, [load, refreshKey]);
 
+  // refreshKey bumps whenever a booking/block/release actually goes through (see
+  // EventDetailPage's afterChange/refreshViewBooking) — clear whatever was selected so the
+  // floating multi-select bar doesn't keep showing stalls that were just booked or blocked.
+  useEffect(() => {
+    setSelected(new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
+
   function toggleSelect(code: string) {
     setSelected((prev) => {
       const next = new Set(prev);

@@ -97,6 +97,9 @@ bookingsRouter.post("/events/:eventId/bookings", async (req: AuthedRequest, res)
   }
 
   const totalAmount = stalls.reduce((sum, s) => sum + Number(s.category.price), 0);
+  if (amountPaid > totalAmount) {
+    return res.status(400).json({ error: `Amount received can't exceed the total (${totalAmount})` });
+  }
 
   const booking = await prisma.$transaction(async (tx) => {
     if (hold) await tx.hold.delete({ where: { id: hold.id } });
@@ -232,6 +235,11 @@ bookingsRouter.post("/bookings/:id/payments", async (req: AuthedRequest, res) =>
 
   const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
   if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+  const pending = Number(booking.totalAmount) - Number(booking.amountPaid);
+  if (parsed.data.amount > pending) {
+    return res.status(400).json({ error: `Amount can't exceed the pending balance (${pending})` });
+  }
 
   const newAmountPaid = Number(booking.amountPaid) + parsed.data.amount;
   const updated = await prisma.$transaction(async (tx) => {

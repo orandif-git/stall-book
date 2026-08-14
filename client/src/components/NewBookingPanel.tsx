@@ -69,6 +69,10 @@ export function NewBookingPanel({
       setError("Enter an amount received — bookings can't be created unpaid.");
       return;
     }
+    if (Number(amountPaid) > total) {
+      setError(`Amount received can't exceed the total (${formatCurrency(total)}).`);
+      return;
+    }
     setSubmitting(true);
     try {
       await api.post(`/events/${eventId}/bookings`, {
@@ -160,6 +164,7 @@ export function NewBookingPanel({
                   id="nb-paid"
                   type="number"
                   min="1"
+                  max={total}
                   step="1"
                   placeholder="Required — partial or full"
                   value={amountPaid}
