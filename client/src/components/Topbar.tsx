@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Building2, ChevronDown, ChevronRight, LogOut, Users } from "lucide-react";
+import { Building2, ChevronDown, ChevronRight, KeyRound, LogOut, Users } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { ROLE_LABEL } from "../lib/status";
+import { ChangePasswordDialog } from "./ChangePasswordDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,7 @@ function initials(name?: string) {
 
 export function Topbar({ crumb }: { crumb?: ReactNode }) {
   const { admin, logout } = useAuth();
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6 lg:px-8">
@@ -56,16 +58,18 @@ export function Topbar({ crumb }: { crumb?: ReactNode }) {
             <div className="font-medium text-foreground">{admin?.name}</div>
             <div className="text-xs font-normal text-muted-foreground">{admin?.email}</div>
           </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setShowChangePassword(true)} className="py-2">
+            <KeyRound />
+            Change password
+          </DropdownMenuItem>
           {admin?.role === "SUPER_ADMIN" && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild className="py-2">
-                <Link to="/users">
-                  <Users />
-                  User access
-                </Link>
-              </DropdownMenuItem>
-            </>
+            <DropdownMenuItem asChild className="py-2">
+              <Link to="/users">
+                <Users />
+                User access
+              </Link>
+            </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} variant="destructive" className="py-2">
@@ -74,6 +78,8 @@ export function Topbar({ crumb }: { crumb?: ReactNode }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
     </header>
   );
 }
