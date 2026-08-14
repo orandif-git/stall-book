@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, MapPin, Plus } from "lucide-react";
+import { CalendarDays, MapPin, Plus, Upload, X } from "lucide-react";
 import { api, type Event } from "../lib/api";
 import { Topbar } from "../components/Topbar";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,9 @@ export function EventsListPage() {
   const [venue, setVenue] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [layoutFile, setLayoutFile] = useState<File | null>(null);
+  const [creating, setCreating] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
     const { data } = await api.get<Event[]>("/events");
@@ -34,15 +37,32 @@ export function EventsListPage() {
     load();
   }, []);
 
+  function onPickLayoutFile(e: ChangeEvent<HTMLInputElement>) {
+    setLayoutFile(e.target.files?.[0] ?? null);
+  }
+
   async function onCreate(e: FormEvent) {
     e.preventDefault();
-    await api.post("/events", { name, venue, startDate, endDate });
-    setName("");
-    setVenue("");
-    setStartDate("");
-    setEndDate("");
-    setShowForm(false);
-    load();
+    setCreating(true);
+    try {
+      const { data: event } = await api.post<Event>("/events", { name, venue, startDate, endDate });
+      if (layoutFile) {
+        const form = new FormData();
+        form.append("image", layoutFile);
+        await api.post(`/events/${event.id}/layout-image`, form, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
+      setName("");
+      setVenue("");
+      setStartDate("");
+      setEndDate("");
+      setLayoutFile(null);
+      setShowForm(false);
+      load();
+    } finally {
+      setCreating(false);
+    }
   }
 
   function formatRange(a: string, b: string) {
@@ -139,10 +159,40 @@ export function EventsListPage() {
                 <Input id="ev-end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
               </div>
             </div>
+            <div className="space-y-1.5">
+              <Label>Layout image (optional)</Label>
+              {layoutFile ? (
+                <div className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
+                  <span className="truncate">{layoutFile.name}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-6"
+                    onClick={() => {
+                      setLayoutFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                  >
+                    <X />
+                  </Button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                  <Upload />
+                  Upload layout photo
+                </Button>
+              )}
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onPickLayoutFile} />
+              <p className="text-xs text-muted-foreground">
+                Reference photo only — for admins to view alongside the grid, not for booking. You can add or replace it
+                later from Setup too.
+              </p>
+            </div>
           </form>
           <SheetFooter>
-            <Button type="submit" form="new-event-form">
-              Create event
+            <Button type="submit" form="new-event-form" disabled={creating}>
+              {creating ? "Creating…" : "Create event"}
             </Button>
           </SheetFooter>
         </SheetContent>
