@@ -22,7 +22,7 @@ function App() {
             }
           />
           <Route
-            path="/events/:eventId"
+            path="/events/:slug"
             element={
               <ProtectedRoute>
                 <EventDetailPage />

@@ -5,6 +5,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { prisma } from "../lib/prisma.js";
 import { logActivity } from "../lib/activity.js";
+import { uniqueEventSlug } from "../lib/slug.js";
 import { requireSuperAdmin, type AuthedRequest } from "../middleware/auth.js";
 
 export const eventsRouter = Router();
@@ -43,13 +44,16 @@ eventsRouter.get("/", async (_req, res) => {
 eventsRouter.post("/", async (req, res) => {
   const parsed = eventSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const event = await prisma.event.create({ data: parsed.data });
+  const slug = await uniqueEventSlug(parsed.data.name);
+  const event = await prisma.event.create({ data: { ...parsed.data, slug } });
   res.status(201).json(event);
 });
 
+// :id accepts either the event's cuid or its slug — lets URLs use the readable slug
+// while every nested route keeps using the real id under the hood.
 eventsRouter.get("/:id", async (req, res) => {
-  const event = await prisma.event.findUnique({
-    where: { id: req.params.id },
+  const event = await prisma.event.findFirst({
+    where: { OR: [{ id: req.params.id }, { slug: req.params.id }] },
     include: { categories: true },
   });
   if (!event) return res.status(404).json({ error: "Event not found" });

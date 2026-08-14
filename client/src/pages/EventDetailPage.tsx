@@ -26,7 +26,7 @@ const LEGEND: { swatch: string; label: string }[] = [
 ];
 
 export function EventDetailPage() {
-  const { eventId } = useParams<{ eventId: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const [event, setEvent] = useState<Event | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stalls, setStalls] = useState<Stall[]>([]);
@@ -43,16 +43,17 @@ export function EventDetailPage() {
   const [blockMode, setBlockMode] = useState(false);
 
   const load = useCallback(async () => {
-    if (!eventId) return;
-    const [ev, cats, sts] = await Promise.all([
-      api.get<Event>(`/events/${eventId}`),
+    if (!slug) return;
+    const ev = await api.get<Event>(`/events/${slug}`);
+    const eventId = ev.data.id;
+    const [cats, sts] = await Promise.all([
       api.get<Category[]>(`/events/${eventId}/categories`),
       api.get<Stall[]>(`/events/${eventId}/stalls`),
     ]);
     setEvent(ev.data);
     setCategories(cats.data);
     setStalls(sts.data);
-  }, [eventId]);
+  }, [slug]);
 
   useEffect(() => {
     load();
@@ -125,7 +126,7 @@ export function EventDetailPage() {
     setBlockMode(false);
   }
 
-  if (!event || !eventId) {
+  if (!event || !slug) {
     return (
       <div className="min-h-screen bg-muted/30">
         <Topbar />
@@ -137,6 +138,7 @@ export function EventDetailPage() {
     );
   }
 
+  const eventId = event.id;
   const selectedStalls = stalls.filter((s) => selected.has(s.id));
 
   return (

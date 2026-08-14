@@ -18,6 +18,7 @@ export interface AdminUser {
 
 export interface Event {
   id: string;
+  slug: string;
   name: string;
   venue: string;
   startDate: string;

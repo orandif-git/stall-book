@@ -106,7 +106,7 @@ export function EventsListPage() {
         {events && events.length > 0 && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {events.map((ev) => (
-              <Link key={ev.id} to={`/events/${ev.id}`}>
+              <Link key={ev.id} to={`/events/${ev.slug}`}>
                 <Card className="h-full transition-shadow hover:shadow-md">
                   <CardHeader>
                     <CardTitle>{ev.name}</CardTitle>

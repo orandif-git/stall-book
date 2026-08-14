@@ -51,6 +51,7 @@ model AdminUser {
 
 model Event {
   id            String   @id @default(cuid())
+  slug          String   @unique
   name          String
   venue         String
   startDate     DateTime
