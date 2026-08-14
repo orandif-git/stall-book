@@ -52,7 +52,7 @@ export function NewBookingPanel({
   const [bookedByOrg, setBookedByOrg] = useState<BookedByOrg>(
     isStaff && admin ? admin.bookedByOrg : initialBookedByOrg
   );
-  const [amountPaid, setAmountPaid] = useState("0");
+  const [amountPaid, setAmountPaid] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("CASH");
   const [paymentReference, setPaymentReference] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +63,10 @@ export function NewBookingPanel({
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!(Number(amountPaid) > 0)) {
+      setError("Enter an amount received — bookings can't be created unpaid.");
+      return;
+    }
     setSubmitting(true);
     try {
       await api.post(`/events/${eventId}/bookings`, {
@@ -74,7 +78,7 @@ export function NewBookingPanel({
         gst: gst || undefined,
         notes: notes || undefined,
         bookedByOrg,
-        amountPaid: Number(amountPaid) || 0,
+        amountPaid: Number(amountPaid),
         paymentMode,
         paymentReference: paymentMode !== "CASH" ? paymentReference || undefined : undefined,
       });
@@ -152,8 +156,12 @@ export function NewBookingPanel({
                 <Input
                   id="nb-paid"
                   type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Required — partial or full"
                   value={amountPaid}
                   onChange={(e) => setAmountPaid(e.target.value)}
+                  required
                   className="flex-1"
                 />
                 <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as PaymentMode)}>

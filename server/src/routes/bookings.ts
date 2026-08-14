@@ -23,7 +23,7 @@ const createBookingSchema = z.object({
   gst: z.string().optional(),
   notes: z.string().optional(),
   bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).default("MEC"),
-  amountPaid: z.coerce.number().nonnegative().default(0),
+  amountPaid: z.coerce.number().positive("Enter an amount received — bookings can't be created unpaid"),
   paymentMode: z.enum(["CASH", "CHEQUE", "UPI", "BANK_TRANSFER", "OTHER"]).default("CASH"),
   paymentReference: z.string().optional(),
 });
@@ -94,9 +94,7 @@ bookingsRouter.post("/events/:eventId/bookings", async (req: AuthedRequest, res)
         paymentStatus: paymentStatusFor(totalAmount, amountPaid),
         bookedById: req.admin?.id,
         stalls: { create: stallIds.map((stallId) => ({ stallId })) },
-        ...(amountPaid > 0
-          ? { payments: { create: [{ amount: amountPaid, mode: paymentMode, reference: paymentReference }] } }
-          : {}),
+        payments: { create: [{ amount: amountPaid, mode: paymentMode, reference: paymentReference }] },
       },
       include: { stalls: { include: { stall: true } }, payments: true },
     });
@@ -110,15 +108,13 @@ bookingsRouter.post("/events/:eventId/bookings", async (req: AuthedRequest, res)
       description: `Booked ${stallCodes} for ${exhibitor.exhibitorName}`,
       performedById: req.admin?.id,
     });
-    if (amountPaid > 0) {
-      await logActivity(tx, {
-        eventId: req.params.eventId,
-        bookingId: created.id,
-        action: "PAYMENT_ADDED",
-        description: `Recorded ₹${amountPaid.toLocaleString("en-IN")} via ${PAYMENT_MODE_LABEL[paymentMode]}${paymentReference ? ` (ref: ${paymentReference})` : ""}`,
-        performedById: req.admin?.id,
-      });
-    }
+    await logActivity(tx, {
+      eventId: req.params.eventId,
+      bookingId: created.id,
+      action: "PAYMENT_ADDED",
+      description: `Recorded ₹${amountPaid.toLocaleString("en-IN")} via ${PAYMENT_MODE_LABEL[paymentMode]}${paymentReference ? ` (ref: ${paymentReference})` : ""}`,
+      performedById: req.admin?.id,
+    });
 
     return created;
   });
