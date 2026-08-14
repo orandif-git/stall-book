@@ -74,8 +74,9 @@ model Category {
   colorHex  String?  // for map rendering, mirrors legend swatches
   createdAt DateTime @default(now())
 
-  event  Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  stalls Stall[]
+  event    Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  stalls   Stall[]
+  activity ActivityLog[]
 
   @@unique([eventId, code])
 }
@@ -179,15 +180,18 @@ model ActivityLog {
   performedByName String
   createdAt       DateTime @default(now())
 
-  bookingId String?
-  holdId    String?
+  bookingId  String?
+  holdId     String?
+  categoryId String?
 
   booking     Booking?   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   hold        Hold?      @relation(fields: [holdId], references: [id], onDelete: Cascade)
+  category    Category?  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   performedBy AdminUser? @relation(fields: [performedById], references: [id], onDelete: SetNull)
 
   @@index([bookingId])
   @@index([holdId])
+  @@index([categoryId])
 }
 
 model Payment {

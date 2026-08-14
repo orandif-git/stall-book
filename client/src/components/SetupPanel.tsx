@@ -1,14 +1,18 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Upload } from "lucide-react";
+import { Pencil, Upload } from "lucide-react";
 import { api, type Category, type Event } from "../lib/api";
 import { formatCurrency } from "../lib/format";
+import { useAuth } from "../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 import { LayoutPhotoDialog } from "./LayoutPhotoDialog";
+import { ActivityTimeline } from "./ActivityTimeline";
 
 interface Props {
   eventId: string;
@@ -18,10 +22,14 @@ interface Props {
 }
 
 export function SetupPanel({ eventId, event, categories, onChanged }: Props) {
+  const { admin } = useAuth();
+  const isSuperAdmin = admin?.role === "SUPER_ADMIN";
+  const [editing, setEditing] = useState<Category | null>(null);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <CategoryForm eventId={eventId} onChanged={onChanged} />
+        {isSuperAdmin && <CategoryForm eventId={eventId} onChanged={onChanged} />}
         <BulkGenerateForm eventId={eventId} categories={categories} onChanged={onChanged} />
         <LayoutImageCard eventId={eventId} event={event} onChanged={onChanged} />
       </div>
@@ -35,6 +43,7 @@ export function SetupPanel({ eventId, event, categories, onChanged }: Props) {
                 <TableHead>Code</TableHead>
                 <TableHead>Label</TableHead>
                 <TableHead className="text-right">Price</TableHead>
+                {isSuperAdmin && <TableHead className="w-10" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -43,11 +52,18 @@ export function SetupPanel({ eventId, event, categories, onChanged }: Props) {
                   <TableCell className="font-medium text-foreground">{c.code}</TableCell>
                   <TableCell className="text-muted-foreground">{c.label}</TableCell>
                   <TableCell className="text-right">{formatCurrency(c.price)}</TableCell>
+                  {isSuperAdmin && (
+                    <TableCell>
+                      <Button variant="ghost" size="icon-sm" title="Edit category" onClick={() => setEditing(c)}>
+                        <Pencil />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
               {categories.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground">
+                  <TableCell colSpan={isSuperAdmin ? 4 : 3} className="text-center text-muted-foreground">
                     No categories yet.
                   </TableCell>
                 </TableRow>
@@ -56,6 +72,18 @@ export function SetupPanel({ eventId, event, categories, onChanged }: Props) {
           </Table>
         </Card>
       </div>
+
+      {editing && (
+        <EditCategorySheet
+          eventId={eventId}
+          category={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(updated) => {
+            setEditing(updated);
+            onChanged();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -111,6 +139,92 @@ function CategoryForm({ eventId, onChanged }: { eventId: string; onChanged: () =
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function EditCategorySheet({
+  eventId,
+  category,
+  onClose,
+  onSaved,
+}: {
+  eventId: string;
+  category: Category;
+  onClose: () => void;
+  onSaved: (updated: Category) => void;
+}) {
+  const [code, setCode] = useState(category.code);
+  const [label, setLabel] = useState(category.label);
+  const [size, setSize] = useState(category.size ?? "");
+  const [price, setPrice] = useState(String(category.price));
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const { data } = await api.patch<Category>(`/events/${eventId}/categories/${category.id}`, {
+        code,
+        label,
+        size: size || undefined,
+        price: Number(price),
+      });
+      onSaved(data);
+    } catch (err) {
+      setError(axiosMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle>Edit category</SheetTitle>
+          <SheetDescription>Changes apply to this category only, not existing stall prices retroactively shown elsewhere.</SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 space-y-4 overflow-y-auto px-4">
+          {error && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          <form id="edit-category-form" onSubmit={onSubmit} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ec-code">Code</Label>
+              <Input id="ec-code" value={code} onChange={(e) => setCode(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ec-label">Label</Label>
+              <Input id="ec-label" value={label} onChange={(e) => setLabel(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ec-size">Size (optional)</Label>
+              <Input id="ec-size" value={size} onChange={(e) => setSize(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ec-price">Price</Label>
+              <Input id="ec-price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} required />
+            </div>
+          </form>
+
+          <Separator />
+
+          <ActivityTimeline entries={category.activity} />
+        </div>
+
+        <SheetFooter>
+          <Button type="submit" form="edit-category-form" disabled={submitting}>
+            {submitting ? "Saving…" : "Save changes"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -252,4 +366,14 @@ function LayoutImageCard({ eventId, event, onChanged }: { eventId: string; event
       </CardContent>
     </Card>
   );
+}
+
+function axiosMessage(err: unknown): string {
+  if (err && typeof err === "object" && "response" in err) {
+    const response = (err as { response?: { data?: { error?: unknown } } }).response;
+    const e = response?.data?.error;
+    if (typeof e === "string") return e;
+    if (e) return JSON.stringify(e);
+  }
+  return "Something went wrong";
 }

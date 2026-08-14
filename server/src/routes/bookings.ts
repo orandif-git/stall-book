@@ -36,13 +36,14 @@ function paymentStatusFor(totalAmount: number, amountPaid: number) {
 
 const activityInclude = { activity: { orderBy: { createdAt: "desc" as const } } };
 
-// GET /api/events/:eventId/bookings?q=&paymentStatus=
+// GET /api/events/:eventId/bookings?q=&paymentStatus=&bookedByOrg=
 bookingsRouter.get("/events/:eventId/bookings", async (req, res) => {
-  const { q, paymentStatus } = req.query;
+  const { q, paymentStatus, bookedByOrg } = req.query;
   const bookings = await prisma.booking.findMany({
     where: {
       eventId: req.params.eventId,
       ...(paymentStatus ? { paymentStatus: paymentStatus as "UNPAID" | "PARTIAL" | "PAID" } : {}),
+      ...(bookedByOrg ? { bookedByOrg: bookedByOrg as "MEC" | "CHAMBER_OF_COMMERCE" } : {}),
       ...(q
         ? {
             OR: [

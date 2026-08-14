@@ -33,6 +33,7 @@ export interface Category {
   size?: string | null;
   price: string | number;
   colorHex?: string | null;
+  activity: ActivityLogEntry[];
 }
 
 export type StallStatus = "AVAILABLE" | "BOOKED" | "BLOCKED";

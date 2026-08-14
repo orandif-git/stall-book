@@ -12,6 +12,7 @@ export async function logActivity(
     eventId: string;
     bookingId?: string;
     holdId?: string;
+    categoryId?: string;
     action: string;
     description: string;
     performedById?: string;
@@ -26,6 +27,7 @@ export async function logActivity(
       eventId: params.eventId,
       bookingId: params.bookingId,
       holdId: params.holdId,
+      categoryId: params.categoryId,
       action: params.action,
       description: params.description,
       performedById: params.performedById,
