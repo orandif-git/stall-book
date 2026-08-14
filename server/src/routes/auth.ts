@@ -27,7 +27,13 @@ authRouter.post("/login", async (req, res) => {
   const token = signToken({ id: admin.id, role: admin.role });
   res.json({
     token,
-    admin: { id: admin.id, name: admin.name, email: admin.email, role: admin.role },
+    admin: {
+      id: admin.id,
+      name: admin.name,
+      email: admin.email,
+      role: admin.role,
+      bookedByOrg: admin.bookedByOrg,
+    },
   });
 });
 

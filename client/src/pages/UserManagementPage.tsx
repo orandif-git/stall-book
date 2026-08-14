@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { KeyRound, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
-import { api, type AdminUser } from "../lib/api";
+import { api, type AdminUser, type BookedByOrg } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { ROLE_LABEL } from "../lib/status";
 import { Topbar } from "../components/Topbar";
+import { OrgToggle } from "../components/OrgToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -175,6 +176,7 @@ function AddUserSheet({ onClose, onCreated }: { onClose: () => void; onCreated: 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("STAFF");
+  const [bookedByOrg, setBookedByOrg] = useState<BookedByOrg>("MEC");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -183,7 +185,7 @@ function AddUserSheet({ onClose, onCreated }: { onClose: () => void; onCreated: 
     setError(null);
     setSubmitting(true);
     try {
-      await api.post("/admin-users", { name, email, password, role });
+      await api.post("/admin-users", { name, email, password, role, bookedByOrg });
       onCreated();
     } catch (err) {
       setError(axiosMessage(err));
@@ -243,6 +245,15 @@ function AddUserSheet({ onClose, onCreated }: { onClose: () => void; onCreated: 
                 {ROLE_LABEL.STAFF} has the same access as {ROLE_LABEL.SUPER_ADMIN}, except managing users.
               </p>
             </div>
+            {role === "STAFF" && (
+              <div className="space-y-1.5">
+                <OrgToggle value={bookedByOrg} onChange={setBookedByOrg} />
+                <p className="text-xs text-muted-foreground">
+                  Their bookings will be recorded under this org automatically — they won't see this choice in the
+                  booking form.
+                </p>
+              </div>
+            )}
           </form>
         </div>
 
@@ -270,6 +281,7 @@ function EditUserSheet({
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const [role, setRole] = useState<Role>(user.role);
+  const [bookedByOrg, setBookedByOrg] = useState<BookedByOrg>(user.bookedByOrg);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -278,7 +290,7 @@ function EditUserSheet({
     setError(null);
     setSubmitting(true);
     try {
-      await api.patch(`/admin-users/${user.id}`, { name, email, role });
+      await api.patch(`/admin-users/${user.id}`, { name, email, role, bookedByOrg });
       onSaved();
     } catch (err) {
       setError(axiosMessage(err));
@@ -324,6 +336,15 @@ function EditUserSheet({
               </Select>
               {isSelf && <p className="text-xs text-muted-foreground">You can't change your own role.</p>}
             </div>
+            {role === "STAFF" && (
+              <div className="space-y-1.5">
+                <OrgToggle value={bookedByOrg} onChange={setBookedByOrg} />
+                <p className="text-xs text-muted-foreground">
+                  Their bookings will be recorded under this org automatically — they won't see this choice in the
+                  booking form.
+                </p>
+              </div>
+            )}
           </form>
         </div>
 

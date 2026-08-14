@@ -16,7 +16,7 @@ async function isLastSuperAdmin(userId: string) {
 // GET /api/admin-users
 adminUsersRouter.get("/admin-users", async (_req, res) => {
   const users = await prisma.adminUser.findMany({
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    select: { id: true, name: true, email: true, role: true, bookedByOrg: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });
   res.json(users);
@@ -27,19 +27,20 @@ const createUserSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum(["SUPER_ADMIN", "STAFF"]).default("STAFF"),
+  bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).default("MEC"),
 });
 
 adminUsersRouter.post("/admin-users", async (req, res) => {
   const parsed = createUserSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const { name, email, password, role } = parsed.data;
+  const { name, email, password, role, bookedByOrg } = parsed.data;
 
   const existing = await prisma.adminUser.findUnique({ where: { email } });
   if (existing) return res.status(409).json({ error: "A user with this email already exists" });
 
   const user = await prisma.adminUser.create({
-    data: { name, email, role, passwordHash: await bcrypt.hash(password, 10) },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    data: { name, email, role, bookedByOrg, passwordHash: await bcrypt.hash(password, 10) },
+    select: { id: true, name: true, email: true, role: true, bookedByOrg: true, createdAt: true },
   });
   res.status(201).json(user);
 });
@@ -48,6 +49,7 @@ const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
   role: z.enum(["SUPER_ADMIN", "STAFF"]).optional(),
+  bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).optional(),
 });
 
 adminUsersRouter.patch("/admin-users/:id", async (req: AuthedRequest, res) => {
@@ -72,7 +74,7 @@ adminUsersRouter.patch("/admin-users/:id", async (req: AuthedRequest, res) => {
   const user = await prisma.adminUser.update({
     where: { id: req.params.id },
     data: parsed.data,
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    select: { id: true, name: true, email: true, role: true, bookedByOrg: true, createdAt: true },
   });
   res.json(user);
 });

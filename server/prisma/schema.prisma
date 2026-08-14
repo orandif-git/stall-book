@@ -38,12 +38,13 @@ enum BookedByOrg {
 }
 
 model AdminUser {
-  id           String    @id @default(cuid())
+  id           String      @id @default(cuid())
   name         String
-  email        String    @unique
+  email        String      @unique
   passwordHash String
-  role         AdminRole @default(STAFF)
-  createdAt    DateTime  @default(now())
+  role         AdminRole   @default(STAFF)
+  bookedByOrg  BookedByOrg @default(MEC)
+  createdAt    DateTime    @default(now())
 
   bookings     Booking[]
   activityLogs ActivityLog[]

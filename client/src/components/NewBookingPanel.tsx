@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { api, type BookedByOrg, type PaymentMode, type Stall } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import { formatCurrency } from "../lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,13 +38,20 @@ export function NewBookingPanel({
   initialPhone = "",
   initialBookedByOrg = "MEC",
 }: Props) {
+  const { admin } = useAuth();
+  // Admins have a fixed org on their profile — their bookings always use it, no manual choice.
+  // Super Admins keep the full manual selector, unchanged.
+  const isStaff = admin?.role === "STAFF";
+
   const [exhibitorName, setExhibitorName] = useState(initialExhibitorName);
   const [company, setCompany] = useState("");
   const [phone, setPhone] = useState(initialPhone);
   const [email, setEmail] = useState("");
   const [gst, setGst] = useState("");
   const [notes, setNotes] = useState("");
-  const [bookedByOrg, setBookedByOrg] = useState<BookedByOrg>(initialBookedByOrg);
+  const [bookedByOrg, setBookedByOrg] = useState<BookedByOrg>(
+    isStaff && admin ? admin.bookedByOrg : initialBookedByOrg
+  );
   const [amountPaid, setAmountPaid] = useState("0");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("CASH");
   const [paymentReference, setPaymentReference] = useState("");
@@ -113,7 +121,7 @@ export function NewBookingPanel({
           )}
 
           <form id="new-booking-form" onSubmit={onSubmit} className="space-y-4">
-            <OrgToggle value={bookedByOrg} onChange={setBookedByOrg} />
+            {!isStaff && <OrgToggle value={bookedByOrg} onChange={setBookedByOrg} />}
             <div className="space-y-1.5">
               <Label htmlFor="nb-name">Exhibitor name</Label>
               <Input id="nb-name" value={exhibitorName} onChange={(e) => setExhibitorName(e.target.value)} required />
