@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Building2, ChevronDown, ChevronRight, KeyRound, LogOut, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, KeyRound, LayoutGrid, LogOut, Users } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { ROLE_LABEL } from "../lib/status";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
@@ -28,7 +28,7 @@ export function Topbar({ crumb }: { crumb?: ReactNode }) {
       <div className="flex min-w-0 items-center gap-2.5 text-sm">
         <Link to="/events" className="flex items-center gap-2.5 font-semibold text-foreground">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Building2 className="size-4.5" />
+            <LayoutGrid className="size-4.5" />
           </span>
           <span className="hidden sm:inline">Stall Booking</span>
         </Link>

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2 } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ export function LoginPage() {
         <CardHeader>
           <div className="mb-1 flex items-center gap-2">
             <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Building2 className="size-5" />
+              <LayoutGrid className="size-5" />
             </div>
             <CardTitle className="text-lg">Stall Booking Admin</CardTitle>
           </div>
