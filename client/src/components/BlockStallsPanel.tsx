@@ -60,7 +60,7 @@ export function BlockStallsPanel({ eventId, stalls, onClose, onBlocked }: Props)
           <SheetDescription>Take these off the market — reserve, hold, or mark unavailable.</SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4">
           <div>
             <div className="mb-1.5 text-xs font-medium text-muted-foreground">Stalls</div>
             <div className="flex flex-wrap gap-1.5">

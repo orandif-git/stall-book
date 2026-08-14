@@ -74,7 +74,7 @@ export function BookingDetailPanel({ booking, onClose, onCancelled, onPaymentAdd
           <SheetTitle>Booking details</SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 space-y-5 overflow-y-auto px-4">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4">
           <div>
             <div className="mb-1 flex items-center gap-2">
               <div className="font-semibold text-foreground">{booking.exhibitorName}</div>

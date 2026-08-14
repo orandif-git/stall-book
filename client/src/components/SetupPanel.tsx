@@ -187,7 +187,7 @@ function EditCategorySheet({
           <SheetDescription>Changes apply to this category only, not existing stall prices retroactively shown elsewhere.</SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4">
           {error && (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}

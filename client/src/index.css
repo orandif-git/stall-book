@@ -147,3 +147,11 @@ body {
     @apply font-sans;
   }
 }
+
+/* Sheet drawers are `position: fixed`; nested overflow-y-auto content inside a fixed
+   ancestor needs this or touch/trackpad scroll gets stuck ("feels fixed") on iOS Safari. */
+[data-slot="sheet-content"] .overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}

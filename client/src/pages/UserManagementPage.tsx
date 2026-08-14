@@ -202,7 +202,7 @@ function AddUserSheet({ onClose, onCreated }: { onClose: () => void; onCreated: 
           <SheetDescription>They'll be able to sign in and manage bookings right away.</SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4">
           {error && (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
@@ -307,7 +307,7 @@ function EditUserSheet({
           <SheetDescription>Update their name, email, or role.</SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4">
           {error && (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
