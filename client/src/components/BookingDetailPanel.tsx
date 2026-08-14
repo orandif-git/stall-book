@@ -20,14 +20,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { ORG_LABEL, PAYMENT_MODES, PAYMENT_REFERENCE_LABEL, PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLES } from "../lib/status";
+import { ActivityTimeline } from "./ActivityTimeline";
 
 interface Props {
   booking: Booking;
   onClose: () => void;
-  onChanged: () => void;
+  onCancelled: () => void;
+  onPaymentAdded: () => void;
 }
 
-export function BookingDetailPanel({ booking, onClose, onChanged }: Props) {
+export function BookingDetailPanel({ booking, onClose, onCancelled, onPaymentAdded }: Props) {
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<PaymentMode>("CASH");
   const [reference, setReference] = useState("");
@@ -47,7 +49,7 @@ export function BookingDetailPanel({ booking, onClose, onChanged }: Props) {
       });
       setAmount("");
       setReference("");
-      onChanged();
+      onPaymentAdded();
     } catch {
       setError("Could not record payment");
     } finally {
@@ -59,7 +61,7 @@ export function BookingDetailPanel({ booking, onClose, onChanged }: Props) {
     setBusy(true);
     try {
       await api.delete(`/bookings/${booking.id}`);
-      onChanged();
+      onCancelled();
     } finally {
       setBusy(false);
     }
@@ -156,22 +158,9 @@ export function BookingDetailPanel({ booking, onClose, onChanged }: Props) {
             </div>
           )}
 
-          {booking.payments.length > 0 && (
-            <div>
-              <div className="mb-1.5 text-xs font-medium text-muted-foreground">Payment history</div>
-              <div className="space-y-1">
-                {booking.payments.map((p) => (
-                  <div key={p.id} className="flex justify-between text-xs text-muted-foreground">
-                    <span>
-                      {new Date(p.paidAt).toLocaleDateString()} · {p.mode}
-                      {p.reference ? ` · ${p.reference}` : ""}
-                    </span>
-                    <span className="font-medium text-foreground">{formatCurrency(p.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <Separator />
+
+          <ActivityTimeline entries={booking.activity} />
 
           <AlertDialog>
             <AlertDialogTrigger asChild>

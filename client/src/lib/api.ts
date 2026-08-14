@@ -67,6 +67,14 @@ export interface Payment {
   notes?: string | null;
 }
 
+export interface ActivityLogEntry {
+  id: string;
+  action: string;
+  description: string;
+  performedByName: string;
+  createdAt: string;
+}
+
 export interface Booking {
   id: string;
   eventId: string;
@@ -83,6 +91,7 @@ export interface Booking {
   createdAt: string;
   stalls: { stall: Stall }[];
   payments: Payment[];
+  activity: ActivityLogEntry[];
 }
 
 export interface Hold {
@@ -95,6 +104,7 @@ export interface Hold {
   releaseAt?: string | null;
   createdAt: string;
   stalls: { stall: Stall }[];
+  activity: ActivityLogEntry[];
 }
 
 export interface ReportSummary {

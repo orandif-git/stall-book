@@ -1,9 +1,18 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { logActivity } from "../lib/activity.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 
 export const bookingsRouter = Router();
+
+const PAYMENT_MODE_LABEL: Record<string, string> = {
+  CASH: "Cash",
+  CHEQUE: "Cheque",
+  UPI: "UPI",
+  BANK_TRANSFER: "Bank transfer",
+  OTHER: "Other",
+};
 
 const createBookingSchema = z.object({
   stallIds: z.array(z.string()).min(1),
@@ -25,6 +34,8 @@ function paymentStatusFor(totalAmount: number, amountPaid: number) {
   return "PARTIAL" as const;
 }
 
+const activityInclude = { activity: { orderBy: { createdAt: "desc" as const } } };
+
 // GET /api/events/:eventId/bookings?q=&paymentStatus=
 bookingsRouter.get("/events/:eventId/bookings", async (req, res) => {
   const { q, paymentStatus } = req.query;
@@ -42,7 +53,7 @@ bookingsRouter.get("/events/:eventId/bookings", async (req, res) => {
           }
         : {}),
     },
-    include: { stalls: { include: { stall: true } }, payments: true },
+    include: { stalls: { include: { stall: true } }, payments: true, ...activityInclude },
     orderBy: { createdAt: "desc" },
   });
   res.json(bookings);
@@ -88,6 +99,25 @@ bookingsRouter.post("/events/:eventId/bookings", async (req: AuthedRequest, res)
       include: { stalls: { include: { stall: true } }, payments: true },
     });
     await tx.stall.updateMany({ where: { id: { in: stallIds } }, data: { status: "BOOKED" } });
+
+    const stallCodes = stalls.map((s) => s.code).join(", ");
+    await logActivity(tx, {
+      eventId: req.params.eventId,
+      bookingId: created.id,
+      action: "CREATED",
+      description: `Booked ${stallCodes} for ${exhibitor.exhibitorName}`,
+      performedById: req.admin?.id,
+    });
+    if (amountPaid > 0) {
+      await logActivity(tx, {
+        eventId: req.params.eventId,
+        bookingId: created.id,
+        action: "PAYMENT_ADDED",
+        description: `Recorded ₹${amountPaid.toLocaleString("en-IN")} via ${PAYMENT_MODE_LABEL[paymentMode]}${paymentReference ? ` (ref: ${paymentReference})` : ""}`,
+        performedById: req.admin?.id,
+      });
+    }
+
     return created;
   });
 
@@ -97,7 +127,7 @@ bookingsRouter.post("/events/:eventId/bookings", async (req: AuthedRequest, res)
 bookingsRouter.get("/bookings/:id", async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.id },
-    include: { stalls: { include: { stall: true } }, payments: true },
+    include: { stalls: { include: { stall: true } }, payments: true, ...activityInclude },
   });
   if (!booking) return res.status(404).json({ error: "Booking not found" });
   res.json(booking);
@@ -113,10 +143,45 @@ const updateBookingSchema = z.object({
   bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).optional(),
 });
 
-bookingsRouter.patch("/bookings/:id", async (req, res) => {
+const FIELD_LABEL: Record<string, string> = {
+  exhibitorName: "exhibitor name",
+  company: "company",
+  phone: "phone",
+  email: "email",
+  gst: "GST",
+  notes: "notes",
+  bookedByOrg: "booked by",
+};
+
+bookingsRouter.patch("/bookings/:id", async (req: AuthedRequest, res) => {
   const parsed = updateBookingSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const booking = await prisma.booking.update({ where: { id: req.params.id }, data: parsed.data });
+
+  const before = await prisma.booking.findUnique({ where: { id: req.params.id } });
+  if (!before) return res.status(404).json({ error: "Booking not found" });
+
+  const changedFields = Object.keys(parsed.data).filter(
+    (key) => (parsed.data as Record<string, unknown>)[key] !== (before as Record<string, unknown>)[key]
+  );
+
+  const booking = await prisma.$transaction(async (tx) => {
+    const updated = await tx.booking.update({
+      where: { id: req.params.id },
+      data: parsed.data,
+      include: { stalls: { include: { stall: true } }, payments: true, ...activityInclude },
+    });
+    if (changedFields.length > 0) {
+      await logActivity(tx, {
+        eventId: updated.eventId,
+        bookingId: updated.id,
+        action: "EDITED",
+        description: `Updated ${changedFields.map((f) => FIELD_LABEL[f] ?? f).join(", ")}`,
+        performedById: req.admin?.id,
+      });
+    }
+    return updated;
+  });
+
   res.json(booking);
 });
 
@@ -146,7 +211,7 @@ const addPaymentSchema = z.object({
   notes: z.string().optional(),
 });
 
-bookingsRouter.post("/bookings/:id/payments", async (req, res) => {
+bookingsRouter.post("/bookings/:id/payments", async (req: AuthedRequest, res) => {
   const parsed = addPaymentSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
@@ -156,14 +221,22 @@ bookingsRouter.post("/bookings/:id/payments", async (req, res) => {
   const newAmountPaid = Number(booking.amountPaid) + parsed.data.amount;
   const updated = await prisma.$transaction(async (tx) => {
     await tx.payment.create({ data: { bookingId: booking.id, ...parsed.data } });
-    return tx.booking.update({
+    const result = await tx.booking.update({
       where: { id: booking.id },
       data: {
         amountPaid: newAmountPaid,
         paymentStatus: paymentStatusFor(Number(booking.totalAmount), newAmountPaid),
       },
-      include: { payments: true, stalls: { include: { stall: true } } },
+      include: { payments: true, stalls: { include: { stall: true } }, ...activityInclude },
     });
+    await logActivity(tx, {
+      eventId: booking.eventId,
+      bookingId: booking.id,
+      action: "PAYMENT_ADDED",
+      description: `Recorded ₹${parsed.data.amount.toLocaleString("en-IN")} via ${PAYMENT_MODE_LABEL[parsed.data.mode]}${parsed.data.reference ? ` (ref: ${parsed.data.reference})` : ""}`,
+      performedById: req.admin?.id,
+    });
+    return result;
   });
 
   res.status(201).json(updated);

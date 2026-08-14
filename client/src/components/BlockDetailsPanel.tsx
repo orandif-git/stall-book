@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ORG_LABEL } from "../lib/status";
+import { ActivityTimeline } from "./ActivityTimeline";
 
 interface Props {
   hold: Hold;
@@ -71,6 +72,10 @@ export function BlockDetailsPanel({ hold, onClose, onReleased, onConfirmBooking 
               Release now
             </Button>
           </div>
+
+          <Separator />
+
+          <ActivityTimeline entries={hold.activity} />
         </div>
       </SheetContent>
     </Sheet>

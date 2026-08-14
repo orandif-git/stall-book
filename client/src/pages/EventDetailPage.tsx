@@ -74,6 +74,15 @@ export function EventDetailPage() {
     setViewBooking(data);
   }
 
+  // Refresh in place — a recorded payment shouldn't close the drawer out from under
+  // the admin, since the whole point is seeing the new activity entry land right there.
+  async function refreshViewBooking(bookingId: string) {
+    const { data } = await api.get<Booking>(`/bookings/${bookingId}`);
+    setViewBooking(data);
+    setRefreshKey((k) => k + 1);
+    load();
+  }
+
   async function viewBlockedStall(stall: Stall) {
     const holdId = stall.holdLinks?.[0]?.hold.id;
     if (!holdId) return;
@@ -250,7 +259,12 @@ export function EventDetailPage() {
       )}
 
       {viewBooking && (
-        <BookingDetailPanel booking={viewBooking} onClose={() => setViewBooking(null)} onChanged={afterChange} />
+        <BookingDetailPanel
+          booking={viewBooking}
+          onClose={() => setViewBooking(null)}
+          onCancelled={afterChange}
+          onPaymentAdded={() => refreshViewBooking(viewBooking.id)}
+        />
       )}
 
       {viewBlocked && (

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { logActivity } from "../lib/activity.js";
+import type { AuthedRequest } from "../middleware/auth.js";
 
 export const holdsRouter = Router();
 
@@ -13,7 +15,7 @@ const createHoldSchema = z.object({
   releaseAt: z.coerce.date().optional(),
 });
 
-holdsRouter.post("/events/:eventId/holds", async (req, res) => {
+holdsRouter.post("/events/:eventId/holds", async (req: AuthedRequest, res) => {
   const parsed = createHoldSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { stallIds, ...details } = parsed.data;
@@ -42,6 +44,16 @@ holdsRouter.post("/events/:eventId/holds", async (req, res) => {
       include: { stalls: { include: { stall: true } } },
     });
     await tx.stall.updateMany({ where: { id: { in: stallIds } }, data: { status: "BLOCKED" } });
+
+    const stallCodes = stalls.map((s) => s.code).join(", ");
+    await logActivity(tx, {
+      eventId: req.params.eventId,
+      holdId: created.id,
+      action: "CREATED",
+      description: `Blocked ${stallCodes}${details.exhibitorName ? ` for ${details.exhibitorName}` : ""}`,
+      performedById: req.admin?.id,
+    });
+
     return created;
   });
 
@@ -51,7 +63,7 @@ holdsRouter.post("/events/:eventId/holds", async (req, res) => {
 holdsRouter.get("/holds/:id", async (req, res) => {
   const hold = await prisma.hold.findUnique({
     where: { id: req.params.id },
-    include: { stalls: { include: { stall: true } } },
+    include: { stalls: { include: { stall: true } }, activity: { orderBy: { createdAt: "desc" } } },
   });
   if (!hold) return res.status(404).json({ error: "Hold not found" });
   res.json(hold);

@@ -45,7 +45,8 @@ model AdminUser {
   role         AdminRole @default(STAFF)
   createdAt    DateTime  @default(now())
 
-  bookings Booking[]
+  bookings     Booking[]
+  activityLogs ActivityLog[]
 }
 
 model Event {
@@ -122,6 +123,7 @@ model Booking {
   bookedBy AdminUser?     @relation(fields: [bookedById], references: [id])
   stalls   BookingStall[]
   payments Payment[]
+  activity ActivityLog[]
 }
 
 model BookingStall {
@@ -149,8 +151,9 @@ model Hold {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  event  Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  stalls HoldStall[]
+  event    Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  stalls   HoldStall[]
+  activity ActivityLog[]
 }
 
 model HoldStall {
@@ -162,6 +165,29 @@ model HoldStall {
   stall Stall @relation(fields: [stallId], references: [id])
 
   @@unique([stallId])
+}
+
+// A short, compact activity trail shown inline in the booking/block drawer — not a
+// separate audit page. performedByName is a snapshot taken at write time so the
+// entry still reads correctly even after that admin's account is later deleted.
+model ActivityLog {
+  id              String   @id @default(cuid())
+  eventId         String
+  action          String // e.g. "CREATED" | "EDITED" | "PAYMENT_ADDED"
+  description     String // short, human-readable one-liner
+  performedById   String?
+  performedByName String
+  createdAt       DateTime @default(now())
+
+  bookingId String?
+  holdId    String?
+
+  booking     Booking?   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  hold        Hold?      @relation(fields: [holdId], references: [id], onDelete: Cascade)
+  performedBy AdminUser? @relation(fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@index([holdId])
 }
 
 model Payment {
