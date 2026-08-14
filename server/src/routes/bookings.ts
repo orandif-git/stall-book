@@ -16,6 +16,9 @@ const PAYMENT_MODE_LABEL: Record<string, string> = {
 
 const createBookingSchema = z.object({
   stallIds: z.array(z.string()).min(1),
+  // Set when converting a block into a booking — the hold is only released here, atomically
+  // with the booking being created, instead of eagerly when "Confirm as booking" is clicked.
+  holdId: z.string().optional(),
   exhibitorName: z.string().min(1),
   company: z.string().optional(),
   phone: z.string().min(1),
@@ -64,7 +67,7 @@ bookingsRouter.get("/events/:eventId/bookings", async (req, res) => {
 bookingsRouter.post("/events/:eventId/bookings", async (req: AuthedRequest, res) => {
   const parsed = createBookingSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const { stallIds, amountPaid, paymentMode, paymentReference, ...exhibitor } = parsed.data;
+  const { stallIds, holdId, amountPaid, paymentMode, paymentReference, ...exhibitor } = parsed.data;
 
   const stalls = await prisma.stall.findMany({
     where: { id: { in: stallIds }, eventId: req.params.eventId },
@@ -73,17 +76,31 @@ bookingsRouter.post("/events/:eventId/bookings", async (req: AuthedRequest, res)
   if (stalls.length !== stallIds.length) {
     return res.status(404).json({ error: "One or more stalls not found in this event" });
   }
-  const unavailable = stalls.filter((s) => s.status !== "AVAILABLE");
-  if (unavailable.length > 0) {
+
+  // Converting a block into a booking: the stalls are expected to still be BLOCKED,
+  // held by exactly this hold — not AVAILABLE like a normal new booking.
+  let hold: { id: string; stalls: { stallId: string }[] } | null = null;
+  if (holdId) {
+    hold = await prisma.hold.findUnique({ where: { id: holdId }, select: { id: true, stalls: true } });
+    if (!hold || hold.stalls.length !== stallIds.length || !hold.stalls.every((s) => stallIds.includes(s.stallId))) {
+      return res.status(409).json({ error: "This block no longer matches the selected stalls — refresh and try again" });
+    }
+  }
+
+  const expectedStatus = holdId ? "BLOCKED" : "AVAILABLE";
+  const wrongStatus = stalls.filter((s) => s.status !== expectedStatus);
+  if (wrongStatus.length > 0) {
     return res.status(409).json({
       error: "Some stalls are no longer available",
-      stalls: unavailable.map((s) => s.code),
+      stalls: wrongStatus.map((s) => s.code),
     });
   }
 
   const totalAmount = stalls.reduce((sum, s) => sum + Number(s.category.price), 0);
 
   const booking = await prisma.$transaction(async (tx) => {
+    if (hold) await tx.hold.delete({ where: { id: hold.id } });
+
     const created = await tx.booking.create({
       data: {
         eventId: req.params.eventId,

@@ -38,6 +38,7 @@ export function EventDetailPage() {
     exhibitorName?: string;
     phone?: string;
     bookedByOrg?: BookedByOrg;
+    holdId?: string;
   }>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [blockMode, setBlockMode] = useState(false);
@@ -103,13 +104,17 @@ export function EventDetailPage() {
     setBookingPrefill({});
   }
 
+  // The block is only released once the booking is actually submitted (atomically, server-side
+  // via holdId) — not here. Backing out of the form below must leave the block untouched.
   function confirmHoldAsBooking(hold: Hold) {
-    api.delete(`/holds/${hold.id}`).then(() => {
-      setSelected(new Set(hold.stalls.map((s) => s.stall.id)));
-      setBookingPrefill({ exhibitorName: hold.exhibitorName ?? "", phone: hold.phone ?? "", bookedByOrg: hold.bookedByOrg });
-      setViewBlocked(null);
-      load();
+    setSelected(new Set(hold.stalls.map((s) => s.stall.id)));
+    setBookingPrefill({
+      exhibitorName: hold.exhibitorName ?? "",
+      phone: hold.phone ?? "",
+      bookedByOrg: hold.bookedByOrg,
+      holdId: hold.id,
     });
+    setViewBlocked(null);
   }
 
   function afterChange() {
@@ -262,6 +267,7 @@ export function EventDetailPage() {
           initialExhibitorName={bookingPrefill.exhibitorName}
           initialPhone={bookingPrefill.phone}
           initialBookedByOrg={bookingPrefill.bookedByOrg}
+          holdId={bookingPrefill.holdId}
         />
       )}
 

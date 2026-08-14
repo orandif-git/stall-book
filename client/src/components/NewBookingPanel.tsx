@@ -27,6 +27,7 @@ interface Props {
   initialExhibitorName?: string;
   initialPhone?: string;
   initialBookedByOrg?: BookedByOrg;
+  holdId?: string;
 }
 
 export function NewBookingPanel({
@@ -37,6 +38,7 @@ export function NewBookingPanel({
   initialExhibitorName = "",
   initialPhone = "",
   initialBookedByOrg = "MEC",
+  holdId,
 }: Props) {
   const { admin } = useAuth();
   // Admins have a fixed org on their profile — their bookings always use it, no manual choice.
@@ -71,6 +73,7 @@ export function NewBookingPanel({
     try {
       await api.post(`/events/${eventId}/bookings`, {
         stallIds: stalls.map((s) => s.id),
+        holdId,
         exhibitorName,
         company: company || undefined,
         phone,
