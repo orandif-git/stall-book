@@ -27,6 +27,7 @@ holdsRouter.get("/events/:eventId/holds", async (req, res) => {
             OR: [
               { exhibitorName: { contains: String(q), mode: "insensitive" } },
               { phone: { contains: String(q) } },
+              { stalls: { some: { stall: { code: { contains: String(q), mode: "insensitive" } } } } },
             ],
           }
         : {}),

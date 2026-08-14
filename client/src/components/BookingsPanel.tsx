@@ -79,7 +79,7 @@ export function BookingsPanel({ eventId, onSelect, onSelectHold, refreshKey }: P
       <div className="relative mb-3 max-w-sm">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search by exhibitor, company or phone…"
+          placeholder="Search by exhibitor, company, phone or stall…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="pl-8"
