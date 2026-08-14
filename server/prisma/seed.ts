@@ -1,8 +1,13 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { PrismaClient } from "@prisma/client";
+import { uniqueEventSlug } from "../src/lib/slug.js";
 
 const prisma = new PrismaClient();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Category price bands transcribed from the Chamber Trade Fair 2026 legend.
 // Ranges are rendered as a simple sequential grid (schematic, not pixel-matched to the JPG) —
@@ -64,14 +69,27 @@ async function main() {
     },
   });
 
+  const name = "Chamber Trade Fair 2026";
   const event = await prisma.event.create({
     data: {
-      name: "Chamber Trade Fair 2026",
+      name,
+      slug: await uniqueEventSlug(name),
       venue: "Tamukkam Convention Centre",
       startDate: new Date("2026-12-24"),
       endDate: new Date("2026-12-28"),
     },
   });
+
+  // Seed the layout photo too, so a fresh deploy has it attached from the start
+  // instead of requiring a manual upload from Setup.
+  const layoutSource = path.resolve(__dirname, "../../Stall Layout.jpg");
+  if (fs.existsSync(layoutSource)) {
+    const uploadsDir = path.resolve(__dirname, "../uploads");
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    const filename = `${event.id}-seed.jpg`;
+    fs.copyFileSync(layoutSource, path.join(uploadsDir, filename));
+    await prisma.event.update({ where: { id: event.id }, data: { layoutImageUrl: `/uploads/${filename}` } });
+  }
 
   let gridRow = 0;
   for (const rc of rangeCategories) {
