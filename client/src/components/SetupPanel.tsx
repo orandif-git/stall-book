@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Pencil, Upload } from "lucide-react";
 import { api, type Category, type Event } from "../lib/api";
 import { formatCurrency } from "../lib/format";
@@ -243,6 +243,33 @@ function BulkGenerateForm({
   const [to, setTo] = useState("1");
   const [gridRow, setGridRow] = useState("1");
   const [startCol, setStartCol] = useState("1");
+  const [afterCode, setAfterCode] = useState<string | null>(null);
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
+
+  useEffect(() => {
+    if (!categoryId) {
+      setAfterCode(null);
+      return;
+    }
+    setLoadingSuggestion(true);
+    api
+      .get<{
+        gridRow: number;
+        startCol: number;
+        suggestedPrefix: string;
+        suggestedFrom: number;
+        afterCode: string | null;
+      }>(`/events/${eventId}/stalls/next-position`, { params: { categoryId } })
+      .then(({ data }) => {
+        setPrefix(data.suggestedPrefix);
+        setFrom(String(data.suggestedFrom));
+        setTo(String(data.suggestedFrom));
+        setGridRow(String(data.gridRow));
+        setStartCol(String(data.startCol));
+        setAfterCode(data.afterCode);
+      })
+      .finally(() => setLoadingSuggestion(false));
+  }, [eventId, categoryId]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -257,6 +284,9 @@ function BulkGenerateForm({
     });
     onChanged();
   }
+
+  const codesPreview =
+    prefix && from && to ? (from === to ? `${prefix}${from}` : `${prefix}${from}–${prefix}${to}`) : null;
 
   return (
     <Card>
@@ -296,14 +326,29 @@ function BulkGenerateForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="bg-row">Map row</Label>
+              <Label htmlFor="bg-row">Position on grid — row</Label>
               <Input id="bg-row" type="number" value={gridRow} onChange={(e) => setGridRow(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="bg-col">Start column</Label>
+              <Label htmlFor="bg-col">column</Label>
               <Input id="bg-col" type="number" value={startCol} onChange={(e) => setStartCol(e.target.value)} required />
             </div>
           </div>
+          {categoryId && (
+            <p className="text-xs text-muted-foreground">
+              {loadingSuggestion
+                ? "Finding where this category's stalls end…"
+                : afterCode
+                  ? `Auto-filled to continue right after ${afterCode} — change only if you want this placed elsewhere.`
+                  : "This category has no stalls yet, so a new row was suggested."}
+            </p>
+          )}
+          {codesPreview && (
+            <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-foreground">
+              Will add: <span className="font-medium">{codesPreview}</span>
+              {afterCode ? ` — right after ${afterCode}` : " — as a new row"}
+            </p>
+          )}
           <Button type="submit" className="w-full">
             Generate stalls
           </Button>

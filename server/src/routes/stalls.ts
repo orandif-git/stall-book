@@ -26,6 +26,40 @@ stallsRouter.get("/events/:eventId/stalls", async (req, res) => {
   res.json(stalls);
 });
 
+// Suggests where a new stall should go for a category — continuing right after that
+// category's last stall if it has any, or a fresh unused row if it's brand new. Powers
+// the auto-fill on the Bulk-generate form so admins don't have to know row/column numbers.
+stallsRouter.get("/events/:eventId/stalls/next-position", async (req, res) => {
+  const categoryId = String(req.query.categoryId ?? "");
+  if (!categoryId) return res.status(400).json({ error: "categoryId is required" });
+
+  const lastStall = await prisma.stall.findFirst({
+    where: { eventId: req.params.eventId, categoryId },
+    orderBy: [{ gridRow: "desc" }, { gridCol: "desc" }],
+  });
+
+  if (lastStall) {
+    const prefixMatch = lastStall.code.match(/^(\D+)/);
+    const numMatch = lastStall.code.match(/(\d+)$/);
+    return res.json({
+      gridRow: lastStall.gridRow,
+      startCol: lastStall.gridCol + 1,
+      suggestedPrefix: prefixMatch?.[1] ?? "",
+      suggestedFrom: numMatch ? Number(numMatch[1]) + 1 : 1,
+      afterCode: lastStall.code,
+    });
+  }
+
+  const agg = await prisma.stall.aggregate({ where: { eventId: req.params.eventId }, _max: { gridRow: true } });
+  res.json({
+    gridRow: (agg._max.gridRow ?? 0) + 1,
+    startCol: 1,
+    suggestedPrefix: "",
+    suggestedFrom: 1,
+    afterCode: null,
+  });
+});
+
 // Bulk-generate a run of stalls, e.g. B1..B41 in one row, or a grid block.
 const bulkGenerateSchema = z.object({
   categoryId: z.string(),
