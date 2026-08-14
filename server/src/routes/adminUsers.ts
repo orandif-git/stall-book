@@ -24,7 +24,7 @@ adminUsersRouter.get("/admin-users", async (_req, res) => {
 
 const createUserSchema = z.object({
   name: z.string().min(1),
-  email: z.string().email(),
+  email: z.string().email().toLowerCase(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum(["SUPER_ADMIN", "STAFF"]).default("STAFF"),
   bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).default("MEC"),
@@ -47,7 +47,7 @@ adminUsersRouter.post("/admin-users", async (req, res) => {
 
 const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
-  email: z.string().email().optional(),
+  email: z.string().email().toLowerCase().optional(),
   role: z.enum(["SUPER_ADMIN", "STAFF"]).optional(),
   bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).optional(),
 });

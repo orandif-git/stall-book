@@ -7,7 +7,7 @@ import { requireAuth, signToken, type AuthedRequest } from "../middleware/auth.j
 export const authRouter = Router();
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().email().toLowerCase(),
   password: z.string().min(1),
 });
 
