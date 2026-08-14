@@ -20,11 +20,13 @@ export function ReportsPanel({ eventId }: { eventId: string }) {
     const res = await fetch(`/api/events/${eventId}/reports/exhibitors.csv`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? "exhibitors.csv";
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `exhibitors-${eventId}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   }

@@ -53,6 +53,9 @@ reportsRouter.get("/events/:eventId/reports/summary", async (req, res) => {
 
 // GET /api/events/:eventId/reports/exhibitors.csv
 reportsRouter.get("/events/:eventId/reports/exhibitors.csv", async (req, res) => {
+  const event = await prisma.event.findUnique({ where: { id: req.params.eventId } });
+  if (!event) return res.status(404).json({ error: "Event not found" });
+
   const bookings = await prisma.booking.findMany({
     where: { eventId: req.params.eventId },
     include: { stalls: { include: { stall: true } } },
@@ -94,6 +97,6 @@ reportsRouter.get("/events/:eventId/reports/exhibitors.csv", async (req, res) =>
   const csv = [header.map(escape).join(","), ...rows].join("\n");
 
   res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", `attachment; filename="exhibitors-${req.params.eventId}.csv"`);
+  res.setHeader("Content-Disposition", `attachment; filename="exhibitors-${event.slug}.csv"`);
   res.send(csv);
 });
