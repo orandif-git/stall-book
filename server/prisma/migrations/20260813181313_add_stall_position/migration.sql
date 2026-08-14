@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Stall" ADD COLUMN     "posXPct" DOUBLE PRECISION,
+ADD COLUMN     "posYPct" DOUBLE PRECISION;

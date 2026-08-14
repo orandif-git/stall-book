@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StallStatus {
+  AVAILABLE
+  BOOKED
+  BLOCKED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+enum PaymentMode {
+  CASH
+  CHEQUE
+  UPI
+  BANK_TRANSFER
+  OTHER
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  STAFF
+}
+
+enum BookedByOrg {
+  MEC
+  CHAMBER_OF_COMMERCE
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         AdminRole @default(STAFF)
+  createdAt    DateTime  @default(now())
+
+  bookings Booking[]
+}
+
+model Event {
+  id            String   @id @default(cuid())
+  name          String
+  venue         String
+  startDate     DateTime
+  endDate       DateTime
+  layoutImageUrl String?
+  createdAt     DateTime @default(now())
+
+  categories Category[]
+  stalls     Stall[]
+  bookings   Booking[]
+  holds      Hold[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  eventId   String
+  code      String   // e.g. "A", "B", "S1"
+  label     String   // e.g. "3 M x 3 M (AA1 to AA2)"
+  size      String?  // e.g. "3 M x 3 M"
+  price     Decimal  @db.Decimal(10, 2)
+  colorHex  String?  // for map rendering, mirrors legend swatches
+  createdAt DateTime @default(now())
+
+  event  Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  stalls Stall[]
+
+  @@unique([eventId, code])
+}
+
+model Stall {
+  id         String      @id @default(cuid())
+  eventId    String
+  categoryId String
+  code       String      // e.g. "B23"
+  zone       String?     // e.g. "S6" block / hall reference
+  gridRow    Int
+  gridCol    Int
+  rowSpan    Int         @default(1)
+  colSpan    Int         @default(1)
+  status     StallStatus @default(AVAILABLE)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  event        Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  category     Category       @relation(fields: [categoryId], references: [id])
+  bookingLinks BookingStall[]
+  holdLinks    HoldStall[]
+
+  @@unique([eventId, code])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  eventId       String
+  exhibitorName String
+  company       String?
+  phone         String
+  email         String?
+  gst           String?
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  amountPaid    Decimal       @default(0) @db.Decimal(10, 2)
+  paymentStatus PaymentStatus @default(UNPAID)
+  bookedByOrg   BookedByOrg   @default(MEC)
+  notes         String?
+  bookedById    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  event    Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  bookedBy AdminUser?     @relation(fields: [bookedById], references: [id])
+  stalls   BookingStall[]
+  payments Payment[]
+}
+
+model BookingStall {
+  id        String @id @default(cuid())
+  bookingId String
+  stallId   String
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  stall   Stall   @relation(fields: [stallId], references: [id])
+
+  @@unique([stallId]) // a stall can only be part of one active booking
+}
+
+// A stall "block": reserved off the market, optionally for a named exhibitor, optionally with
+// an auto-release date. Distinct from Booking — no payment involved, and it can be converted
+// into a real Booking later ("confirm as booking") using the same details.
+model Hold {
+  id            String      @id @default(cuid())
+  eventId       String
+  exhibitorName String?
+  phone         String?
+  notes         String?
+  bookedByOrg   BookedByOrg @default(MEC)
+  releaseAt     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  event  Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  stalls HoldStall[]
+}
+
+model HoldStall {
+  id      String @id @default(cuid())
+  holdId  String
+  stallId String
+
+  hold  Hold  @relation(fields: [holdId], references: [id], onDelete: Cascade)
+  stall Stall @relation(fields: [stallId], references: [id])
+
+  @@unique([stallId])
+}
+
+model Payment {
+  id        String      @id @default(cuid())
+  bookingId String
+  amount    Decimal     @db.Decimal(10, 2)
+  mode      PaymentMode
+  reference String?     // cheque no. / UPI ref / transaction id — n/a for cash
+  paidAt    DateTime    @default(now())
+  notes     String?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}

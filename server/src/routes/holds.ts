@@ -1,0 +1,72 @@
+import { Router } from "express";
+import { z } from "zod";
+import { prisma } from "../lib/prisma.js";
+
+export const holdsRouter = Router();
+
+const createHoldSchema = z.object({
+  stallIds: z.array(z.string()).min(1),
+  exhibitorName: z.string().optional(),
+  phone: z.string().optional(),
+  notes: z.string().optional(),
+  bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).default("MEC"),
+  releaseAt: z.coerce.date().optional(),
+});
+
+holdsRouter.post("/events/:eventId/holds", async (req, res) => {
+  const parsed = createHoldSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const { stallIds, ...details } = parsed.data;
+
+  const stalls = await prisma.stall.findMany({
+    where: { id: { in: stallIds }, eventId: req.params.eventId },
+  });
+  if (stalls.length !== stallIds.length) {
+    return res.status(404).json({ error: "One or more stalls not found in this event" });
+  }
+  const unavailable = stalls.filter((s) => s.status !== "AVAILABLE");
+  if (unavailable.length > 0) {
+    return res.status(409).json({
+      error: "Some stalls are no longer available",
+      stalls: unavailable.map((s) => s.code),
+    });
+  }
+
+  const hold = await prisma.$transaction(async (tx) => {
+    const created = await tx.hold.create({
+      data: {
+        eventId: req.params.eventId,
+        ...details,
+        stalls: { create: stallIds.map((stallId) => ({ stallId })) },
+      },
+      include: { stalls: { include: { stall: true } } },
+    });
+    await tx.stall.updateMany({ where: { id: { in: stallIds } }, data: { status: "BLOCKED" } });
+    return created;
+  });
+
+  res.status(201).json(hold);
+});
+
+holdsRouter.get("/holds/:id", async (req, res) => {
+  const hold = await prisma.hold.findUnique({
+    where: { id: req.params.id },
+    include: { stalls: { include: { stall: true } } },
+  });
+  if (!hold) return res.status(404).json({ error: "Hold not found" });
+  res.json(hold);
+});
+
+// Release now: stalls go back to AVAILABLE, hold is removed.
+holdsRouter.delete("/holds/:id", async (req, res) => {
+  const hold = await prisma.hold.findUnique({ where: { id: req.params.id }, include: { stalls: true } });
+  if (!hold) return res.status(404).json({ error: "Hold not found" });
+
+  await prisma.$transaction(async (tx) => {
+    const stallIds = hold.stalls.map((s) => s.stallId);
+    await tx.stall.updateMany({ where: { id: { in: stallIds } }, data: { status: "AVAILABLE" } });
+    await tx.hold.delete({ where: { id: req.params.id } });
+  });
+
+  res.status(204).send();
+});
