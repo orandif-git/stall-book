@@ -12,6 +12,8 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
+    allowedHosts: ['demo.jasinfo.in'],
     proxy: {
       '/api': 'http://localhost:4000',
       '/uploads': 'http://localhost:4000',

@@ -1,0 +1,867 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chamber Trade Fair 2026 — Stall Booking</title>
+<style>
+  :root{
+    --paper:#eef1f4;
+    --plan:#fbfcfd;
+    --ink:#101820;
+    --ink-2:#3c4a58;
+    --ink-3:#78889a;
+    --line:#c9d3dd;
+    --line-2:#e3e9ef;
+    --red:#c81d25;
+    --red-dk:#8f1219;
+    --gold:#b8860b;
+    --green:#0f7a52;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --shadow: 0 1px 2px rgba(16,24,32,.06), 0 8px 24px rgba(16,24,32,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    font-size:14px;
+  }
+  button{font-family:inherit}
+  :focus-visible{outline:2px solid var(--red);outline-offset:2px}
+
+  /* ---------- Title block (architectural drawing header) ---------- */
+  .titleblock{
+    background:var(--ink);
+    color:#fff;
+    border-bottom:3px solid var(--red);
+    padding:14px 18px;
+    display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;
+  }
+  .tb-left{display:flex;align-items:center;gap:14px;min-width:0}
+  .seal{
+    width:42px;height:42px;border-radius:50%;flex:none;
+    border:2px solid var(--red);
+    display:grid;place-items:center;
+    font:700 9px/1.05 var(--mono);text-align:center;letter-spacing:.02em;
+    color:#ffd9db;background:radial-gradient(circle at 50% 30%,#2a343f,#141c24);
+  }
+  .tb-title{font-size:clamp(15px,2.1vw,22px);font-weight:800;letter-spacing:-.02em;line-height:1.05;text-transform:uppercase}
+  .tb-title b{color:#ff5a60}
+  .tb-sub{font:500 10.5px/1.4 var(--mono);color:#8fa1b3;letter-spacing:.09em;text-transform:uppercase;margin-top:3px}
+  .tb-right{display:flex;gap:10px;align-items:center}
+  .datechip{
+    font:600 10.5px/1 var(--mono);letter-spacing:.06em;
+    border:1px solid #3a4854;padding:8px 10px;border-radius:3px;color:#cfdae4;white-space:nowrap;
+  }
+  .datechip span{color:#ff7a80}
+
+  /* ---------- Stats ---------- */
+  .stats{
+    display:grid;grid-template-columns:repeat(4,1fr);
+    background:#fff;border-bottom:1px solid var(--line);
+  }
+  .stat{padding:10px 16px;border-right:1px solid var(--line-2)}
+  .stat:last-child{border-right:0}
+  .stat .k{font:600 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+  .stat .v{font:700 20px/1.15 var(--sans);letter-spacing:-.02em;margin-top:5px;font-variant-numeric:tabular-nums}
+  .stat .v small{font-size:11px;color:var(--ink-3);font-weight:600}
+  .stat.avail .v{color:var(--green)}
+  .stat.booked .v{color:var(--red)}
+  .stat.mine .v{color:var(--gold)}
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{
+    display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:30;
+  }
+  .search{position:relative;flex:0 1 210px}
+  .search input{
+    width:100%;padding:8px 10px 8px 28px;border:1px solid var(--line);border-radius:4px;
+    font:600 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;background:#fbfcfd;color:var(--ink);
+  }
+  .search svg{position:absolute;left:8px;top:50%;transform:translateY(-50%);opacity:.45}
+  .chips{display:flex;gap:5px;flex-wrap:wrap;flex:1 1 auto;min-width:0}
+  .chip{
+    border:1px solid var(--line);background:#fff;color:var(--ink-2);
+    font:600 10.5px/1 var(--mono);letter-spacing:.08em;
+    padding:7px 9px;border-radius:3px;cursor:pointer;display:flex;align-items:center;gap:5px;
+    transition:.14s;
+  }
+  .chip i{width:9px;height:9px;border-radius:2px;background:var(--c,#ccc);display:block}
+  .chip:hover{border-color:var(--ink-3)}
+  .chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tools{display:flex;gap:6px;align-items:center}
+  .tbtn{
+    border:1px solid var(--line);background:#fff;color:var(--ink-2);cursor:pointer;
+    width:32px;height:32px;border-radius:4px;font-size:15px;display:grid;place-items:center;transition:.14s;
+  }
+  .tbtn:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tbtn.wide{width:auto;padding:0 11px;font:600 11px/1 var(--mono);letter-spacing:.06em}
+  .zoomlbl{font:600 11px/1 var(--mono);color:var(--ink-3);min-width:38px;text-align:center}
+
+  /* ---------- Stage ---------- */
+  .stage{display:flex;align-items:stretch;min-height:52vh}
+  .viewport{
+    flex:1 1 auto;overflow:auto;position:relative;
+    background:
+      linear-gradient(var(--line-2) 1px, transparent 1px) 0 0/24px 24px,
+      linear-gradient(90deg,var(--line-2) 1px, transparent 1px) 0 0/24px 24px,
+      var(--plan);
+    cursor:grab;touch-action:pan-x pan-y;
+  }
+  .viewport.dragging{cursor:grabbing}
+  .sizer{position:relative}
+  .canvas{position:absolute;top:0;left:0;width:1500px;height:850px;transform-origin:0 0}
+
+  .decor{position:absolute;inset:0;pointer-events:none}
+  .stairs{position:absolute;border:1.5px solid var(--ink-2);background:
+    linear-gradient(45deg,transparent 47%,var(--ink-2) 47%,var(--ink-2) 53%,transparent 53%),
+    linear-gradient(-45deg,transparent 47%,var(--ink-2) 47%,var(--ink-2) 53%,transparent 53%);}
+  .dlabel{position:absolute;font:600 10px/1 var(--mono);letter-spacing:.14em;color:var(--ink-3);text-transform:uppercase}
+  .dlabel.red{color:var(--red);font-weight:700}
+
+  /* ---------- Stalls ---------- */
+  .stall{
+    position:absolute;border:1px solid rgba(16,24,32,.5);background:var(--c);
+    color:#12181f;padding:0;margin:0;cursor:pointer;
+    display:grid;place-items:center;text-align:center;
+    font-family:var(--mono);font-weight:700;line-height:1.02;letter-spacing:-.02em;
+    border-radius:1.5px;overflow:hidden;
+    transition:transform .12s cubic-bezier(.2,.8,.3,1), box-shadow .12s, filter .12s, opacity .12s;
+  }
+  .stall:hover{transform:scale(1.14);z-index:12;box-shadow:0 0 0 1.5px var(--ink),0 6px 14px rgba(16,24,32,.35)}
+  .stall.dim{opacity:.16;filter:grayscale(1)}
+  .stall.hit{animation:ping 1s ease-out 3;z-index:14}
+  @keyframes ping{0%{box-shadow:0 0 0 0 rgba(200,29,37,.85)}70%{box-shadow:0 0 0 12px rgba(200,29,37,0)}100%{box-shadow:0 0 0 0 rgba(200,29,37,0)}}
+  .stall.booked{
+    color:#fff;
+    background:
+      repeating-linear-gradient(45deg,rgba(255,255,255,.14) 0 3px,transparent 3px 6px),
+      #55636f;
+    border-color:#2b353f;
+  }
+  .stall.mine{
+    color:#fff;
+    background:
+      repeating-linear-gradient(45deg,rgba(255,255,255,.16) 0 3px,transparent 3px 6px),
+      var(--green);
+    border-color:#064530;
+    box-shadow:inset 0 0 0 1.5px #fff;
+  }
+  .stall.stamp{animation:stamp .45s cubic-bezier(.2,1.5,.4,1)}
+  @keyframes stamp{0%{transform:scale(2.4);opacity:0}55%{transform:scale(.92)}100%{transform:scale(1)}}
+  .stall.big{border-width:1.5px}
+
+  /* ---------- Tooltip ---------- */
+  .tip{
+    position:fixed;z-index:60;pointer-events:none;opacity:0;transform:translateY(4px);
+    transition:opacity .12s, transform .12s;
+    background:var(--ink);color:#fff;border-radius:4px;padding:8px 10px;min-width:150px;
+    box-shadow:0 10px 30px rgba(16,24,32,.35);border-left:3px solid var(--c,#fff);
+  }
+  .tip.on{opacity:1;transform:translateY(0)}
+  .tip .t-id{font:700 13px/1 var(--mono);letter-spacing:.04em}
+  .tip .t-meta{font:500 10px/1.5 var(--mono);color:#9fb0c0;margin-top:4px;letter-spacing:.05em;text-transform:uppercase}
+  .tip .t-price{font:700 13px/1 var(--sans);margin-top:6px}
+  .tip .t-state{margin-top:6px;font:700 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+  .tip .t-state.free{color:#5ce0a5}
+  .tip .t-state.taken{color:#ff8b90}
+
+  /* ---------- Drawer ---------- */
+  .drawer{
+    flex:0 0 300px;background:#fff;border-left:1px solid var(--line);
+    display:flex;flex-direction:column;max-height:70vh;
+  }
+  .drawer.collapsed{display:none}
+  .dr-head{padding:12px 14px;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;align-items:center}
+  .dr-head h2{margin:0;font:700 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+  .dr-list{overflow:auto;padding:10px;flex:1;display:flex;flex-direction:column;gap:8px}
+  .empty{padding:26px 16px;text-align:center;color:var(--ink-3)}
+  .empty strong{display:block;color:var(--ink-2);font-size:13px;margin-bottom:6px}
+  .empty span{font-size:12px;line-height:1.5}
+  .bcard{border:1px solid var(--line);border-left:3px solid var(--green);border-radius:4px;padding:10px}
+  .bcard .r1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .bcard .bid{font:700 14px/1 var(--mono)}
+  .bcard .amt{font:700 13px/1 var(--sans);font-variant-numeric:tabular-nums}
+  .bcard .co{font-size:12px;color:var(--ink-2);margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bcard .ref{font:600 9.5px/1 var(--mono);color:var(--ink-3);letter-spacing:.08em;margin-top:5px}
+  .bcard .acts{display:flex;gap:6px;margin-top:8px}
+  .mini{border:1px solid var(--line);background:#fff;border-radius:3px;padding:5px 8px;font:600 10px/1 var(--mono);letter-spacing:.06em;cursor:pointer;color:var(--ink-2)}
+  .mini:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .mini.danger:hover{background:var(--red);border-color:var(--red)}
+  .dr-foot{border-top:1px solid var(--line-2);padding:12px 14px;background:#fafbfc}
+  .totrow{display:flex;justify-content:space-between;font:600 11px/1.6 var(--mono);color:var(--ink-2);letter-spacing:.05em}
+  .totrow.grand{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink)}
+  .totrow.grand b{font-family:var(--sans);font-size:16px}
+
+  /* ---------- Legend ---------- */
+  .legend{background:#fff;border-top:1px solid var(--line);padding:14px 16px}
+  .legend h3{margin:0 0 10px;font:700 10.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+  .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:6px 18px}
+  .litem{display:flex;align-items:center;gap:8px;font-size:11.5px;padding:3px 0;cursor:pointer;border-radius:3px}
+  .litem:hover{background:#f2f5f8}
+  .litem i{width:16px;height:16px;border-radius:2px;border:1px solid rgba(16,24,32,.35);background:var(--c);flex:none}
+  .litem .ln{color:var(--ink-2);flex:1;font-family:var(--mono);font-size:10.5px;letter-spacing:.02em}
+  .litem .lp{font-weight:700;font-variant-numeric:tabular-nums}
+
+  /* ---------- Modal ---------- */
+  .scrim{
+    position:fixed;inset:0;background:rgba(16,24,32,.55);backdrop-filter:blur(2px);
+    display:none;align-items:center;justify-content:center;padding:16px;z-index:80;
+  }
+  .scrim.on{display:flex}
+  .modal{
+    background:#fff;width:min(560px,100%);max-height:92vh;overflow:auto;border-radius:6px;
+    box-shadow:0 30px 80px rgba(16,24,32,.4);animation:pop .22s cubic-bezier(.2,.9,.3,1);
+  }
+  @keyframes pop{from{transform:translateY(14px) scale(.98);opacity:0}}
+  .m-head{padding:16px 18px;border-bottom:1px solid var(--line-2);display:flex;gap:14px;align-items:flex-start}
+  .m-swatch{width:52px;height:52px;border-radius:4px;border:1.5px solid rgba(16,24,32,.45);background:var(--c);
+    display:grid;place-items:center;font:700 13px/1 var(--mono);flex:none}
+  .m-head h2{margin:0;font-size:19px;letter-spacing:-.02em}
+  .m-head p{margin:5px 0 0;font:600 10.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .m-close{margin-left:auto;border:0;background:none;font-size:22px;line-height:1;cursor:pointer;color:var(--ink-3);padding:2px 4px}
+  .m-close:hover{color:var(--red)}
+  .m-body{padding:16px 18px}
+  .fieldrow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font:600 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
+  .field label em{color:var(--red);font-style:normal}
+  .field input,.field select,.field textarea{
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:13px;background:#fbfcfd;color:var(--ink);
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--ink);background:#fff}
+  .field.bad input{border-color:var(--red);background:#fff5f5}
+  .field .err{display:none;color:var(--red);font-size:11px;margin-top:4px}
+  .field.bad .err{display:block}
+  .terms{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--ink-2);line-height:1.5;margin:2px 0 14px}
+  .terms input{margin-top:2px;accent-color:var(--red);width:15px;height:15px;flex:none}
+  .costbox{background:#f6f8fa;border:1px solid var(--line-2);border-radius:5px;padding:12px 14px;margin:4px 0 14px}
+  .costbox .cr{display:flex;justify-content:space-between;font:500 12px/1.9 var(--mono);color:var(--ink-2)}
+  .costbox .cr.tot{border-top:1px dashed var(--line);margin-top:6px;padding-top:6px;color:var(--ink);font-weight:700}
+  .costbox .cr.tot b{font-family:var(--sans);font-size:16px}
+  .costbox .cr.adv{color:var(--red);font-weight:700}
+  .m-foot{display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--line-2);background:#fafbfc;position:sticky;bottom:0}
+  .btn{
+    flex:1;padding:12px 14px;border-radius:4px;border:1px solid var(--ink);background:var(--ink);color:#fff;
+    font:700 11.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:.14s;
+  }
+  .btn:hover{background:#000}
+  .btn.primary{background:var(--red);border-color:var(--red)}
+  .btn.primary:hover{background:var(--red-dk);border-color:var(--red-dk)}
+  .btn.ghost{background:#fff;color:var(--ink-2);border-color:var(--line)}
+  .btn.ghost:hover{background:#f0f3f6;color:var(--ink)}
+  .btn.danger{background:#fff;color:var(--red);border-color:#f0c3c5}
+  .btn.danger:hover{background:var(--red);color:#fff}
+
+  /* receipt */
+  .receipt{text-align:center;padding:8px 0 4px}
+  .rstamp{
+    display:inline-block;border:2.5px solid var(--green);color:var(--green);
+    font:800 15px/1 var(--mono);letter-spacing:.18em;padding:10px 16px;border-radius:4px;
+    transform:rotate(-7deg);margin-bottom:16px;animation:stamp .5s cubic-bezier(.2,1.5,.4,1);
+  }
+  .receipt h3{margin:0 0 4px;font-size:20px;letter-spacing:-.02em}
+  .receipt .rsub{color:var(--ink-3);font-size:12.5px;line-height:1.6;margin-bottom:16px}
+  .rtable{width:100%;border-collapse:collapse;text-align:left;margin-bottom:6px}
+  .rtable td{padding:8px 10px;border-bottom:1px solid var(--line-2);font-size:12.5px}
+  .rtable td:first-child{font:600 9.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);width:44%}
+  .rtable td:last-child{font-weight:600;text-align:right}
+  .detail-note{font-size:12px;color:var(--ink-3);line-height:1.6;margin-top:12px}
+
+  /* ---------- Toast ---------- */
+  .toast{
+    position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);z-index:90;
+    background:var(--ink);color:#fff;padding:11px 16px;border-radius:5px;border-left:3px solid #5ce0a5;
+    font:600 12.5px/1 var(--sans);opacity:0;pointer-events:none;transition:.22s;box-shadow:0 12px 34px rgba(16,24,32,.35);
+    max-width:88vw;
+  }
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+  .toast.warn{border-left-color:#ffb44d}
+
+  @media (max-width:900px){
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .stat{border-bottom:1px solid var(--line-2)}
+    .stage{flex-direction:column}
+    .drawer{flex:none;max-height:none;border-left:0;border-top:1px solid var(--line)}
+    .viewport{height:58vh}
+    .fieldrow{grid-template-columns:1fr}
+  }
+</style>
+
+<div class="titleblock">
+  <div class="tb-left">
+    <div class="seal">MADURAI<br>MEC</div>
+    <div>
+      <div class="tb-title">Chamber Trade Fair <b>2026</b></div>
+      <div class="tb-sub">Tamukkam Convention Centre &middot; Stall booking console</div>
+    </div>
+  </div>
+  <div class="tb-right">
+    <div class="datechip">DEC <span>24 &ndash; 28</span>, 2026</div>
+    <div class="datechip">DWG&nbsp;/&nbsp;CTF-26-L1</div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="k">Total stalls</div><div class="v" id="s-total">0</div></div>
+  <div class="stat avail"><div class="k">Available</div><div class="v" id="s-avail">0</div></div>
+  <div class="stat booked"><div class="k">Booked</div><div class="v" id="s-booked">0 <small id="s-pct">0%</small></div></div>
+  <div class="stat mine"><div class="k">Your bookings</div><div class="v" id="s-mine">0 <small id="s-mineamt">₹0</small></div></div>
+</div>
+
+<div class="toolbar">
+  <div class="search">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <input id="q" placeholder="Find stall" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="tools">
+    <button class="tbtn" id="zout" title="Zoom out">&minus;</button>
+    <span class="zoomlbl" id="zlbl">100%</span>
+    <button class="tbtn" id="zin" title="Zoom in">+</button>
+    <button class="tbtn wide" id="fit">Fit</button>
+    <button class="tbtn wide" id="toggledr">Bookings</button>
+    <button class="tbtn wide" id="reset" title="Clear all demo bookings">Reset</button>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="viewport" id="viewport">
+    <div class="sizer" id="sizer"><div class="canvas" id="canvas"></div></div>
+  </div>
+  <aside class="drawer" id="drawer">
+    <div class="dr-head"><h2>Your bookings</h2><span class="ref" id="dr-count" style="font:600 10px/1 var(--mono);color:var(--ink-3)"></span></div>
+    <div class="dr-list" id="dr-list"></div>
+    <div class="dr-foot">
+      <div class="totrow"><span>STALL VALUE</span><span id="t-base">₹0</span></div>
+      <div class="totrow"><span>GST @ 18%</span><span id="t-gst">₹0</span></div>
+      <div class="totrow grand"><span>PAYABLE</span><b id="t-grand">₹0</b></div>
+    </div>
+  </aside>
+</div>
+
+<div class="legend">
+  <h3>Stall categories &amp; tariff <span style="color:var(--ink-3);font-weight:500;text-transform:none;letter-spacing:0"> — click a row to isolate it on the plan</span></h3>
+  <div class="lgrid" id="lgrid"></div>
+</div>
+
+<div class="tip" id="tip"></div>
+<div class="scrim" id="scrim"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   1. TARIFF — taken straight from the printed layout legend
+   ============================================================ */
+const T = {
+  A1:   {cat:'A', size:'2.5M x 3M', price:56000, color:'#fbd34a'},
+  A210: {cat:'A', size:'3M x 3M',   price:65000, color:'#f3903a'},
+  A11:  {cat:'A', size:'2.5M x 3M', price:52000, color:'#f2606a'},
+  AA12: {cat:'A', size:'3M x 3M',   price:75000, color:'#efb4e7'},
+  AA35: {cat:'A', size:'3M x 3M',   price:70000, color:'#f5a2b0'},
+  B:    {cat:'B', size:'2.5M x 2.5M',price:46000,color:'#f0616b'},
+  CA:   {cat:'C', size:'3M x 3M',   price:60000, color:'#f2938f'},
+  C:    {cat:'C', size:'2.5M x 2.5M',price:43000,color:'#e3c08d'},
+  CB:   {cat:'C', size:'2M x 2.5M', price:33000, color:'#fbdccb'},
+  DA:   {cat:'D', size:'3M x 3M',   price:55000, color:'#7fb3ce'},
+  D:    {cat:'D', size:'2.5M x 2.5M',price:40000,color:'#35a8e0'},
+  DB:   {cat:'D', size:'2M x 2.5M', price:31000, color:'#8e5a92'},
+  E:    {cat:'E', size:'2.5M x 2.5M',price:36000,color:'#f39c5a'},
+  EB:   {cat:'E', size:'2M x 2.5M', price:27000, color:'#f9b8a4'},
+  F:    {cat:'F', size:'2M x 2M',   price:25000, color:'#d6db4b'},
+  GA:   {cat:'G', size:'3M x 3M',   price:60000, color:'#c3a3e8'},
+  G:    {cat:'G', size:'3M x 3M',   price:50000, color:'#c9265e'},
+  H112: {cat:'H', size:'2M x 2M',   price:22000, color:'#a5d5cc'},
+  H1318:{cat:'H', size:'2M x 2M',   price:20000, color:'#f6b5c1'}
+};
+const SPEC = {
+  S1:{area:780,price:400000,color:'#f07f22'}, S2:{area:270,price:150000,color:'#5b8fd6'},
+  S3:{area:410,price:200000,color:'#1a9b8a'}, S4:{area:320,price:200000,color:'#8ed49a'},
+  S5:{area:92, price:65000, color:'#4a6fa8'}, S6:{area:153,price:80000, color:'#aec6e8'},
+  S7:{area:128,price:110000,color:'#c8e86a'}, S8:{area:208,price:110000,color:'#5fbfa8'},
+  S9:{area:208,price:110000,color:'#6dd3d3'}, S10:{area:128,price:100000,color:'#fbd34a'},
+  S11:{area:208,price:100000,color:'#a8d5b0'},S12:{area:208,price:100000,color:'#8fc49a'},
+  S13:{area:128,price:90000, color:'#e04a1a'},S14:{area:648,price:220000,color:'#eae86a'},
+  S15:{area:355,price:140000,color:'#c08a6a'},S16:{area:114,price:45000, color:'#a03a52'},
+  S17:{area:78, price:40000, color:'#e5a8ec'},S18:{area:114,price:40000, color:'#d8a8f0'}
+};
+
+/* ============================================================
+   2. FLOOR PLAN GEOMETRY — traced from the uploaded drawing
+   ============================================================ */
+const STALLS = [];
+function add(id, x, y, w, h, t){ STALLS.push({id, x, y, w, h, cat:t.cat, size:t.size, price:t.price, color:t.color}); }
+function strip(ids, x0, y, w, h, step, t){ ids.forEach((id,i)=>add(id, x0+i*step, y, w, h, t)); }
+function seq(p,a,b){ const o=[]; const d=a<=b?1:-1; for(let i=a; d>0?i<=b:i>=b; i+=d) o.push(p+i); return o; }
+
+/* Row F — north wall */
+strip(seq('F',1,11), 137,155,29,28,31, T.F);
+strip(seq('F',12,26),540,155,29,28,30.5, T.F);
+/* Row EB / E */
+strip(seq('EB',8,1), 108,262,29,43,31, T.EB);
+strip(seq('E',15,1), 356,262,36,43,37.5, T.E);
+/* Row DB / D20-34 */
+strip(['DB4','DB7','DB6','DB5','DB8','DB9','DB10','DB11'], 108,308,29,42,31, T.DB);
+strip(seq('D',20,34), 356,308,36,42,37.5, T.D);
+/* Row DB3-1 / D19-1 */
+strip(seq('DB',3,1), 108,428,29,42,31, T.DB);
+strip(seq('D',19,1), 205,428,36,42,37.5, T.D);
+/* Row CB4-6 / C20-38 */
+strip(seq('CB',4,6), 108,472,29,42,31, T.CB);
+strip(seq('C',20,38), 205,472,36,42,37.5, T.C);
+/* Row CB3-1 / C19-1 */
+strip(seq('CB',3,1), 108,590,29,42,31, T.CB);
+strip(seq('C',19,1), 205,590,36,42,37.5, T.C);
+/* Row B20-41 and B19-1 */
+strip(seq('B',20,41), 95,645,36,42,37.5, T.B);
+strip(seq('B',19,1),  95,778,35,42,37.5, T.B);
+/* East island: GA / DA / G / CA / A / AA */
+add('GA1',1025,222,50,42,T.GA); add('GA2',1078,222,48,42,T.GA);
+add('DA4',1025,268,50,42,T.DA); add('G1', 1078,268,48,42,T.G);
+add('DA3',1025,314,50,42,T.DA); add('G2', 1078,314,48,42,T.G);
+add('DA2',1025,360,50,42,T.DA); add('G3', 1078,360,48,42,T.G);
+add('DA1',1025,406,50,42,T.DA); add('G4', 1078,406,48,42,T.G);
+add('CA3',1025,458,50,44,T.CA);
+add('CA2',1025,508,50,44,T.CA); add('A9', 1078,508,48,44,T.A210);
+add('CA1',1025,556,50,44,T.CA); add('A10',1078,556,48,44,T.A210);
+add('AA5',1025,604,50,44,T.AA35); add('AA4',1078,604,48,44,T.AA35);
+add('G5',1180,265,42,38,T.G); add('G6',1180,307,42,38,T.G); add('GA3',1180,349,42,38,T.GA);
+/* H columns */
+['H6','H5','H4','H3','H2','H1'].forEach((id,i)=>add(id,1226,185+i*34,32,32,T.H112));
+['H7','H8','H9','H10','H11','H12'].forEach((id,i)=>add(id,1300,200+i*34,36,30,T.H112));
+['H13','H14','H15','H16','H17','H18'].forEach((id,i)=>add(id,1338,200+i*34,36,30,T.H1318));
+/* A block near entry */
+add('A4',1226,470,46,44,T.A210); add('A3',1274,470,46,44,T.A210);
+add('A2',1322,470,40,44,T.A210); add('A1',1364,470,44,44,T.A1);
+add('AA3',1180,580,44,42,T.AA35); add('AA2',1226,580,46,42,T.AA12); add('AA1',1358,580,50,42,T.AA12);
+add('A11',1180,624,44,44,T.A11); add('A8',1230,616,46,48,T.A210); add('A5',1358,624,50,48,T.A210);
+add('A7',1230,668,46,48,T.A210); add('A6',1358,676,50,44,T.A210);
+/* Premium S-blocks */
+const SPOS = {
+  S14:[30,145,75,110], S12:[30,290,75,60], S11:[30,412,75,50], S9:[30,470,75,55],
+  S8:[30,558,75,62], S6:[30,652,75,50], S5:[30,742,75,42],
+  S13:[922,262,34,88], S10:[925,428,46,84], S7:[925,590,46,90], S4:[905,778,86,42],
+  S15:[1145,140,75,90], S2:[1078,458,120,48], S17:[1300,170,74,26],
+  S16:[1285,412,50,50], S18:[1338,398,52,64], S3:[1075,700,145,55], S1:[1226,730,180,80]
+};
+Object.entries(SPOS).forEach(([id,[x,y,w,h]])=>{
+  const s = SPEC[id];
+  add(id,x,y,w,h,{cat:'S', size:s.area+' sq.ft', price:s.price, color:s.color});
+});
+
+const BY_ID = Object.fromEntries(STALLS.map(s=>[s.id,s]));
+
+/* ============================================================
+   3. STATE
+   ============================================================ */
+const SEED = {
+  F3:'Sri Meenakshi Handlooms', F4:'Sri Meenakshi Handlooms', F14:'Kongu Millet Foods',
+  E5:'Vaigai Steel Furniture', E6:'Vaigai Steel Furniture', E12:'Anandhaa Silks',
+  EB2:'Thoothukudi Sea Salt Co', D3:'Karpagam Home Appliances', D4:'Karpagam Home Appliances',
+  D17:'Nila Organic Farms', D28:'Chettinad Masala Works', DB5:'Vel Traders',
+  C7:'Aavin Dairy', C8:'Aavin Dairy', C21:'Sakthi Agro Tools', C33:'Poompuhar Crafts',
+  CB2:'Madurai Malli Exports', B2:'Kumaran Jewellery', B3:'Kumaran Jewellery',
+  B15:'Sivakasi Print House', B27:'Amman Kitchenware', B34:'Tirunelveli Halwa Co',
+  A2:'Royal Enfield Madurai', A7:'TVS Motor Company', AA4:'Chola Financial Services',
+  G2:'Ramraj Cotton', G5:'Aachi Masala', H4:'Tamil Nadu Khadi Board', H9:'Startup TN Pavilion',
+  H15:'Madurai Kamaraj University', S2:'Indian Bank', S13:'MSME Development Institute',
+  S6:'Tamil Nadu Tourism', DA2:'Saravana Stores', CA1:'Lakshmi Machine Works', GA1:'Ashok Leyland'
+};
+let bookings = {};   // id -> {ref, company, contact, phone, email, city, product, gst, when, mine}
+let filter = null;   // active category filter
+let zoom = 1, fitScale = 1, hit = null;
+
+Object.entries(SEED).forEach(([id,co])=>{
+  if(BY_ID[id]) bookings[id] = {ref:'CTF26-'+(1000+Math.floor(Math.random()*8999)), company:co, mine:false};
+});
+
+/* ============================================================
+   4. RENDER PLAN
+   ============================================================ */
+const canvas = document.getElementById('canvas');
+const decor = `
+<div class="decor">
+  <svg width="1500" height="850" style="position:absolute;inset:0">
+    <rect x="22" y="126" width="1400" height="700" fill="none" stroke="#101820" stroke-width="2.5"/>
+    <rect x="60" y="200" width="900" height="560" fill="none" stroke="#8fa1b3" stroke-width="1.2" stroke-dasharray="7 5"/>
+    <path d="M100 225 H960 M100 390 H1000 M100 545 H1000 M100 715 H1000" stroke="#b9c5d1" stroke-width="1" stroke-dasharray="6 6"/>
+    <path d="M1424 415 h60" stroke="#c81d25" stroke-width="2"/><path d="M1478 409 l10 6 -10 6z" fill="#c81d25"/>
+    <path d="M1484 530 h-60" stroke="#c81d25" stroke-width="2"/><path d="M1430 524 l-10 6 10 6z" fill="#c81d25"/>
+  </svg>
+  <div class="stairs" style="left:478px;top:150px;width:52px;height:34px"></div>
+  <div class="stairs" style="left:1005px;top:138px;width:95px;height:32px"></div>
+  <div class="stairs" style="left:812px;top:778px;width:88px;height:42px"></div>
+  <div class="stairs" style="left:1000px;top:760px;width:150px;height:60px"></div>
+  <div class="dlabel red" style="left:1428px;top:396px">EXIT</div>
+  <div class="dlabel red" style="left:1428px;top:540px">ENTRY</div>
+  <div class="dlabel" style="left:1240px;top:640px">PORTICO 16.00 x 8.20</div>
+  <div class="dlabel" style="left:60px;top:836px">MURAL</div>
+  <div class="dlabel" style="left:300px;top:836px">MURAL</div>
+  <div class="dlabel" style="left:540px;top:836px">MURAL</div>
+  <div class="dlabel" style="left:760px;top:836px">MURAL</div>
+  <div class="dlabel" style="left:26px;top:104px">NORTH WALL &mdash; B2</div>
+</div>`;
+
+function fontFor(s){
+  const n = s.id.length;
+  let f = Math.min(s.h*0.42, s.w/(n*0.62));
+  return Math.max(6, Math.min(f, 13));
+}
+function paint(){
+  canvas.innerHTML = decor + STALLS.map(s=>{
+    const b = bookings[s.id];
+    const cls = ['stall'];
+    if(b) cls.push(b.mine ? 'mine' : 'booked');
+    if(s.w>60||s.h>60) cls.push('big');
+    if(filter && s.cat!==filter) cls.push('dim');
+    return `<button class="${cls.join(' ')}" data-id="${s.id}"
+      style="left:${s.x}px;top:${s.y}px;width:${s.w}px;height:${s.h}px;--c:${s.color};font-size:${fontFor(s).toFixed(1)}px">${s.id}</button>`;
+  }).join('');
+  stats();
+}
+
+/* ============================================================
+   5. STATS / DRAWER
+   ============================================================ */
+const money = n => '₹' + n.toLocaleString('en-IN');
+function stats(){
+  const total = STALLS.length, taken = Object.keys(bookings).length;
+  const mineIds = Object.keys(bookings).filter(id=>bookings[id].mine);
+  const mineAmt = mineIds.reduce((a,id)=>a+BY_ID[id].price,0);
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-avail').textContent = total-taken;
+  document.getElementById('s-booked').firstChild.nodeValue = taken+' ';
+  document.getElementById('s-pct').textContent = Math.round(taken/total*100)+'% sold';
+  document.getElementById('s-mine').firstChild.nodeValue = mineIds.length+' ';
+  document.getElementById('s-mineamt').textContent = money(mineAmt);
+  drawer(mineIds, mineAmt);
+}
+function drawer(ids, base){
+  const list = document.getElementById('dr-list');
+  document.getElementById('dr-count').textContent = ids.length ? ids.length+' STALL'+(ids.length>1?'S':'') : '';
+  if(!ids.length){
+    list.innerHTML = `<div class="empty"><strong>No stalls held yet</strong><span>Tap any coloured box on the plan to open its booking form. Grey hatched boxes are already taken.</span></div>`;
+  } else {
+    list.innerHTML = ids.map(id=>{
+      const s = BY_ID[id], b = bookings[id];
+      return `<div class="bcard">
+        <div class="r1"><span class="bid">${id}</span><span class="amt">${money(s.price)}</span></div>
+        <div class="co">${b.company}</div>
+        <div class="ref">${b.ref} &middot; ${s.size} &middot; CAT ${s.cat}</div>
+        <div class="acts">
+          <button class="mini" data-go="${id}">Show on plan</button>
+          <button class="mini danger" data-cancel="${id}">Release</button>
+        </div></div>`;
+    }).join('');
+  }
+  const gst = Math.round(base*0.18);
+  document.getElementById('t-base').textContent = money(base);
+  document.getElementById('t-gst').textContent = money(gst);
+  document.getElementById('t-grand').textContent = money(base+gst);
+}
+
+/* ============================================================
+   6. CHIPS + LEGEND
+   ============================================================ */
+const CATS = [
+  ['A','#f3903a'],['B','#f0616b'],['C','#e3c08d'],['D','#35a8e0'],
+  ['E','#f39c5a'],['F','#d6db4b'],['G','#c9265e'],['H','#a5d5cc'],['S','#f07f22']
+];
+document.getElementById('chips').innerHTML = CATS.map(([c,col])=>
+  `<button class="chip" data-cat="${c}" aria-pressed="false"><i style="--c:${col}"></i>${c}</button>`).join('');
+document.getElementById('chips').onclick = e=>{
+  const b = e.target.closest('.chip'); if(!b) return;
+  const c = b.dataset.cat;
+  filter = (filter===c) ? null : c;
+  [...document.querySelectorAll('.chip')].forEach(x=>x.setAttribute('aria-pressed', x.dataset.cat===filter));
+  paint();
+};
+const LEG = [
+  ['AA1 – AA2','3M x 3M',75000,'#efb4e7','A'], ['AA3 – AA5','3M x 3M',70000,'#f5a2b0','A'],
+  ['A1','2.5M x 3M',56000,'#fbd34a','A'], ['A2 – A10','3M x 3M',65000,'#f3903a','A'],
+  ['A11','2.5M x 3M',52000,'#f2606a','A'], ['B1 – B41','2.5M x 2.5M',46000,'#f0616b','B'],
+  ['CA1 – CA3','3M x 3M',60000,'#f2938f','C'], ['C1 – C38','2.5M x 2.5M',43000,'#e3c08d','C'],
+  ['CB1 – CB6','2M x 2.5M',33000,'#fbdccb','C'], ['DA1 – DA4','3M x 3M',55000,'#7fb3ce','D'],
+  ['D1 – D34','2.5M x 2.5M',40000,'#35a8e0','D'], ['DB1 – DB11','2M x 2.5M',31000,'#8e5a92','D'],
+  ['E1 – E15','2.5M x 2.5M',36000,'#f39c5a','E'], ['EB1 – EB8','2M x 2.5M',27000,'#f9b8a4','E'],
+  ['F1 – F26','2M x 2M',25000,'#d6db4b','F'], ['GA1 – GA3','3M x 3M',60000,'#c3a3e8','G'],
+  ['G1 – G6','3M x 3M',50000,'#c9265e','G'], ['H1 – H12','2M x 2M',22000,'#a5d5cc','H'],
+  ['H13 – H18','2M x 2M',20000,'#f6b5c1','H']
+].concat(Object.entries(SPEC).map(([id,s])=>[id, s.area+' sq.ft', s.price, s.color, 'S']));
+document.getElementById('lgrid').innerHTML = LEG.map(([n,sz,p,c,cat])=>
+  `<div class="litem" data-cat="${cat}"><i style="--c:${c}"></i><span class="ln">${n} &middot; ${sz}</span><span class="lp">${money(p)}</span></div>`).join('');
+document.getElementById('lgrid').onclick = e=>{
+  const r = e.target.closest('.litem'); if(!r) return;
+  filter = (filter===r.dataset.cat) ? null : r.dataset.cat;
+  [...document.querySelectorAll('.chip')].forEach(x=>x.setAttribute('aria-pressed', x.dataset.cat===filter));
+  paint();
+};
+
+/* ============================================================
+   7. ZOOM / PAN
+   ============================================================ */
+const viewport = document.getElementById('viewport'), sizer = document.getElementById('sizer');
+function applyScale(){
+  fitScale = viewport.clientWidth / 1500;
+  const s = fitScale * zoom;
+  canvas.style.transform = `scale(${s})`;
+  sizer.style.width = (1500*s)+'px';
+  sizer.style.height = (850*s)+'px';
+  document.getElementById('zlbl').textContent = Math.round(zoom*100)+'%';
+}
+function setZoom(z, anchor){
+  const old = zoom; zoom = Math.max(0.8, Math.min(4, z));
+  const cx = viewport.scrollLeft + viewport.clientWidth/2;
+  const cy = viewport.scrollTop + viewport.clientHeight/2;
+  applyScale();
+  const k = zoom/old;
+  viewport.scrollLeft = cx*k - viewport.clientWidth/2;
+  viewport.scrollTop  = cy*k - viewport.clientHeight/2;
+}
+document.getElementById('zin').onclick = ()=>setZoom(zoom*1.3);
+document.getElementById('zout').onclick = ()=>setZoom(zoom/1.3);
+document.getElementById('fit').onclick = ()=>{ zoom=1; applyScale(); viewport.scrollTo(0,0); };
+addEventListener('resize', applyScale);
+let drag=null;
+viewport.addEventListener('pointerdown', e=>{
+  if(e.target.closest('.stall')) return;
+  drag={x:e.clientX,y:e.clientY,l:viewport.scrollLeft,t:viewport.scrollTop};
+  viewport.classList.add('dragging'); viewport.setPointerCapture(e.pointerId);
+});
+viewport.addEventListener('pointermove', e=>{
+  if(!drag) return;
+  viewport.scrollLeft = drag.l-(e.clientX-drag.x);
+  viewport.scrollTop  = drag.t-(e.clientY-drag.y);
+});
+['pointerup','pointercancel'].forEach(ev=>viewport.addEventListener(ev,()=>{drag=null;viewport.classList.remove('dragging')}));
+
+/* ============================================================
+   8. TOOLTIP
+   ============================================================ */
+const tip = document.getElementById('tip');
+canvas.addEventListener('mouseover', e=>{
+  const el = e.target.closest('.stall'); if(!el) return;
+  const s = BY_ID[el.dataset.id], b = bookings[s.id];
+  tip.style.setProperty('--c', s.color);
+  tip.innerHTML = `<div class="t-id">${s.id}</div>
+    <div class="t-meta">Cat ${s.cat} &middot; ${s.size}</div>
+    <div class="t-price">${money(s.price)}</div>
+    <div class="t-state ${b?'taken':'free'}">${b ? (b.mine?'▲ HELD BY YOU':'● BOOKED — '+b.company) : '● AVAILABLE — TAP TO BOOK'}</div>`;
+  tip.classList.add('on');
+});
+canvas.addEventListener('mousemove', e=>{
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(e.clientX+16, innerWidth-w-10)+'px';
+  tip.style.top  = Math.max(8, e.clientY-h-12)+'px';
+});
+canvas.addEventListener('mouseout', e=>{ if(e.target.closest('.stall')) tip.classList.remove('on'); });
+
+/* ============================================================
+   9. BOOKING FLOW
+   ============================================================ */
+const scrim = document.getElementById('scrim'), modal = document.getElementById('modal');
+let current = null;
+canvas.addEventListener('click', e=>{
+  const el = e.target.closest('.stall'); if(!el) return;
+  open(el.dataset.id);
+});
+function open(id){
+  current = id; tip.classList.remove('on');
+  const b = bookings[id];
+  modal.innerHTML = b ? detailView(id) : formView(id);
+  scrim.classList.add('on');
+  const first = modal.querySelector('input,select'); if(first && !b) setTimeout(()=>first.focus(),120);
+}
+function head(id, extra){
+  const s = BY_ID[id];
+  return `<div class="m-head">
+    <div class="m-swatch" style="--c:${s.color}">${s.id}</div>
+    <div><h2>Stall ${s.id}${extra||''}</h2>
+      <p>Category ${s.cat} &middot; ${s.size} &middot; ${money(s.price)}</p></div>
+    <button class="m-close" data-x aria-label="Close">&times;</button>
+  </div>`;
+}
+function costs(p){
+  const gst = Math.round(p*0.18), tot = p+gst, adv = Math.round(tot*0.25);
+  return `<div class="costbox">
+    <div class="cr"><span>STALL RENT</span><span>${money(p)}</span></div>
+    <div class="cr"><span>GST @ 18%</span><span>${money(gst)}</span></div>
+    <div class="cr"><span>POWER &amp; FASCIA</span><span>Included</span></div>
+    <div class="cr tot"><span>TOTAL</span><b>${money(tot)}</b></div>
+    <div class="cr adv"><span>PAY NOW (25% ADVANCE)</span><span>${money(adv)}</span></div>
+  </div>`;
+}
+function formView(id){
+  const s = BY_ID[id];
+  return head(id) + `<div class="m-body">
+    <div class="field"><label for="f-co">Company name <em>*</em></label>
+      <input id="f-co" data-req placeholder="e.g. Meenakshi Textiles Pvt Ltd"><div class="err">Enter the company name</div></div>
+    <div class="fieldrow">
+      <div class="field"><label for="f-name">Contact person <em>*</em></label>
+        <input id="f-name" data-req placeholder="Full name"><div class="err">Enter a contact name</div></div>
+      <div class="field"><label for="f-ph">Mobile <em>*</em></label>
+        <input id="f-ph" data-req data-phone inputmode="numeric" maxlength="10" placeholder="10 digits"><div class="err">Enter a 10-digit mobile number</div></div>
+    </div>
+    <div class="fieldrow">
+      <div class="field"><label for="f-em">Email <em>*</em></label>
+        <input id="f-em" data-req data-email placeholder="name@company.com"><div class="err">Enter a valid email</div></div>
+      <div class="field"><label for="f-city">City</label><input id="f-city" placeholder="Madurai"></div>
+    </div>
+    <div class="fieldrow">
+      <div class="field"><label for="f-prod">Products on display</label>
+        <select id="f-prod">
+          <option>Textiles &amp; handlooms</option><option>Food &amp; agri products</option>
+          <option>Home appliances</option><option>Jewellery</option><option>Automobiles</option>
+          <option>Engineering &amp; machinery</option><option>Banking &amp; finance</option>
+          <option>Handicrafts</option><option>Education</option><option>Other</option>
+        </select></div>
+      <div class="field"><label for="f-gst">GSTIN</label><input id="f-gst" placeholder="33ABCDE1234F1Z5"></div>
+    </div>
+    ${costs(s.price)}
+    <label class="terms"><input type="checkbox" id="f-tc" data-req>
+      I accept the exhibitor rules for CTF 2026 — advance is non-refundable after 30 Nov 2026, and stall handover is on 23 Dec 2026 from 10:00.</label>
+  </div>
+  <div class="m-foot">
+    <button class="btn ghost" data-x>Cancel</button>
+    <button class="btn primary" data-confirm>Confirm booking</button>
+  </div>`;
+}
+function detailView(id){
+  const s = BY_ID[id], b = bookings[id];
+  if(!b.mine){
+    return head(id, ' — booked') + `<div class="m-body">
+      <table class="rtable">
+        <tr><td>Status</td><td style="color:var(--red)">Booked</td></tr>
+        <tr><td>Exhibitor</td><td>${b.company}</td></tr>
+        <tr><td>Booking ref</td><td>${b.ref}</td></tr>
+        <tr><td>Size</td><td>${s.size}</td></tr>
+      </table>
+      <p class="detail-note">This stall is allotted to another exhibitor. Use the category filters to find a free stall in the same block, or join the waitlist and the secretariat will call you if it is released.</p>
+    </div>
+    <div class="m-foot"><button class="btn ghost" data-x>Close</button><button class="btn" data-waitlist>Join waitlist</button></div>`;
+  }
+  const gst = Math.round(s.price*0.18);
+  return head(id, ' — held by you') + `<div class="m-body">
+    <table class="rtable">
+      <tr><td>Booking ref</td><td>${b.ref}</td></tr>
+      <tr><td>Company</td><td>${b.company}</td></tr>
+      <tr><td>Contact</td><td>${b.contact} &middot; ${b.phone}</td></tr>
+      <tr><td>Email</td><td>${b.email}</td></tr>
+      <tr><td>Products</td><td>${b.product}</td></tr>
+      <tr><td>Booked on</td><td>${b.when}</td></tr>
+      <tr><td>Total with GST</td><td>${money(s.price+gst)}</td></tr>
+    </table>
+    <p class="detail-note">Stall handover 23 Dec 2026, 10:00. Carry this reference and your GST certificate to the exhibitor desk.</p>
+  </div>
+  <div class="m-foot"><button class="btn ghost" data-x>Close</button><button class="btn danger" data-cancel="${id}">Release stall</button></div>`;
+}
+function receiptView(id){
+  const s = BY_ID[id], b = bookings[id], gst = Math.round(s.price*0.18);
+  return `<div class="m-body"><div class="receipt">
+    <div class="rstamp">BOOKED</div>
+    <h3>Stall ${id} is yours</h3>
+    <p class="rsub">A confirmation has gone to ${b.email}.<br>Pay the advance within 72 hours to keep the allotment.</p>
+    <table class="rtable">
+      <tr><td>Booking ref</td><td>${b.ref}</td></tr>
+      <tr><td>Exhibitor</td><td>${b.company}</td></tr>
+      <tr><td>Stall</td><td>${id} &middot; ${s.size} &middot; Cat ${s.cat}</td></tr>
+      <tr><td>Total with GST</td><td>${money(s.price+gst)}</td></tr>
+      <tr><td>Advance due</td><td style="color:var(--red)">${money(Math.round((s.price+gst)*0.25))}</td></tr>
+    </table>
+  </div></div>
+  <div class="m-foot"><button class="btn ghost" data-x>Book another stall</button><button class="btn primary" data-x>Done</button></div>`;
+}
+modal.addEventListener('click', e=>{
+  if(e.target.closest('[data-x]')) return close();
+  if(e.target.closest('[data-confirm]')) return confirmBooking();
+  const c = e.target.closest('[data-cancel]');
+  if(c){ release(c.dataset.cancel); close(); }
+  if(e.target.closest('[data-waitlist]')){ close(); toast('Added to the waitlist for stall '+current, true); }
+});
+scrim.addEventListener('click', e=>{ if(e.target===scrim) close(); });
+addEventListener('keydown', e=>{ if(e.key==='Escape') close(); });
+function close(){ scrim.classList.remove('on'); }
+
+function confirmBooking(){
+  let ok = true;
+  modal.querySelectorAll('[data-req]').forEach(f=>{
+    let bad = f.type==='checkbox' ? !f.checked : !f.value.trim();
+    if(f.dataset.phone && !/^\d{10}$/.test(f.value.trim())) bad = true;
+    if(f.dataset.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.value.trim())) bad = true;
+    const wrap = f.closest('.field') || f.closest('.terms');
+    if(wrap) wrap.classList.toggle('bad', bad);
+    if(bad && f.type==='checkbox') f.parentElement.style.color = 'var(--red)';
+    if(bad) ok = false;
+  });
+  if(!ok){ toast('Check the highlighted fields', true); return; }
+  const g = i=>document.getElementById(i).value.trim();
+  bookings[current] = {
+    ref: 'CTF26-' + Math.floor(1000+Math.random()*9000),
+    company: g('f-co'), contact: g('f-name'), phone: g('f-ph'), email: g('f-em'),
+    city: g('f-city') || '—', product: g('f-prod'), gst: g('f-gst') || '—',
+    when: new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}),
+    mine: true
+  };
+  save();
+  const id = current;
+  paint();
+  const el = canvas.querySelector(`[data-id="${id}"]`);
+  if(el){ el.classList.add('stamp'); setTimeout(()=>el.classList.remove('stamp'),600); }
+  modal.innerHTML = head(id) + receiptView(id);
+  toast('Stall '+id+' booked — ref '+bookings[id].ref);
+}
+function release(id){
+  delete bookings[id]; save(); paint();
+  toast('Stall '+id+' released and back on the plan', true);
+}
+
+/* ============================================================
+   10. SEARCH / DRAWER ACTIONS / TOAST / STORAGE
+   ============================================================ */
+document.getElementById('q').addEventListener('input', e=>{
+  const v = e.target.value.trim().toUpperCase();
+  if(hit){ const p = canvas.querySelector(`[data-id="${hit}"]`); if(p) p.classList.remove('hit'); hit=null; }
+  if(!BY_ID[v]) return;
+  focusStall(v);
+});
+function focusStall(id){
+  const el = canvas.querySelector(`[data-id="${id}"]`); if(!el) return;
+  hit = id; el.classList.add('hit');
+  const s = BY_ID[id], k = fitScale*zoom;
+  viewport.scrollTo({left: s.x*k - viewport.clientWidth/2 + 40, top: s.y*k - viewport.clientHeight/2 + 40, behavior:'smooth'});
+}
+document.getElementById('dr-list').addEventListener('click', e=>{
+  const g = e.target.closest('[data-go]'); if(g) return focusStall(g.dataset.go);
+  const c = e.target.closest('[data-cancel]'); if(c) release(c.dataset.cancel);
+});
+document.getElementById('toggledr').onclick = ()=>document.getElementById('drawer').classList.toggle('collapsed');
+document.getElementById('reset').onclick = ()=>{
+  Object.keys(bookings).forEach(id=>{ if(bookings[id].mine) delete bookings[id]; });
+  save(); paint(); toast('Your demo bookings were cleared', true);
+};
+let tt;
+function toast(msg, warn){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.toggle('warn', !!warn); t.classList.add('on');
+  clearTimeout(tt); tt = setTimeout(()=>t.classList.remove('on'), 3200);
+}
+async function save(){
+  try{
+    const mine = Object.fromEntries(Object.entries(bookings).filter(([,b])=>b.mine));
+    await window.storage.set('ctf2026:bookings', JSON.stringify(mine));
+  }catch(err){ /* demo runs fine without persistence */ }
+}
+async function load(){
+  try{
+    const r = await window.storage.get('ctf2026:bookings');
+    if(r && r.value) Object.assign(bookings, JSON.parse(r.value));
+  }catch(err){}
+  paint();
+}
+
+/* boot */
+paint(); applyScale(); load();
+</script>

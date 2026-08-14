@@ -110,6 +110,54 @@ export interface Hold {
   activity: ActivityLogEntry[];
 }
 
+export type FloorPlanStatus = "AVAILABLE" | "BLOCKED" | "BOOKED_UNPAID" | "BOOKED_PARTIAL" | "BOOKED_PAID";
+
+export interface FloorPlanStall {
+  id: string;
+  code: string;
+  categoryCode: string;
+  categoryLabel: string;
+  price: number;
+  colorHex: string | null;
+  posX: number | null;
+  posY: number | null;
+  width: number | null;
+  height: number | null;
+  rotation: number;
+  shape: "rect" | "poly";
+  points: number[];
+  status: FloorPlanStatus;
+  bookingId?: string;
+  exhibitorName?: string;
+  company?: string | null;
+  totalAmount?: number;
+  amountPaid?: number;
+  holdId?: string;
+  blockedFor?: string | null;
+  blockReason?: string | null;
+}
+
+export type DecorKind = "WALL" | "AISLE" | "STAIRS" | "LABEL" | "ARROW";
+
+export interface FloorPlanDecorItem {
+  id: string;
+  kind: DecorKind;
+  posX: number | null;
+  posY: number | null;
+  width: number | null;
+  height: number | null;
+  text: string | null;
+  points: number[];
+}
+
+export interface FloorPlanData {
+  canvasWidth: number;
+  canvasHeight: number;
+  layoutImageUrl: string | null;
+  stalls: FloorPlanStall[];
+  decor: FloorPlanDecorItem[];
+}
+
 export interface ReportSummary {
   stalls: { total: number; booked: number; blocked: number; available: number };
   revenue: { invoiced: number; collected: number; pending: number };

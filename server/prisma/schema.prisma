@@ -37,6 +37,14 @@ enum BookedByOrg {
   CHAMBER_OF_COMMERCE
 }
 
+enum DecorKind {
+  WALL
+  AISLE
+  STAIRS
+  LABEL
+  ARROW
+}
+
 model AdminUser {
   id           String      @id @default(cuid())
   name         String
@@ -58,12 +66,17 @@ model Event {
   startDate     DateTime
   endDate       DateTime
   layoutImageUrl String?
+  // Logical size of the floor-plan canvas that stall posX/posY/width/height are
+  // expressed in (traced from the reference drawing) — not a pixel/DOM size.
+  canvasWidth   Float    @default(1500)
+  canvasHeight  Float    @default(850)
   createdAt     DateTime @default(now())
 
   categories Category[]
   stalls     Stall[]
   bookings   Booking[]
   holds      Hold[]
+  decor      FloorPlanDecor[]
 }
 
 model Category {
@@ -94,6 +107,19 @@ model Stall {
   rowSpan    Int         @default(1)
   colSpan    Int         @default(1)
   status     StallStatus @default(AVAILABLE)
+  // Floor-plan geometry, in the owning Event's canvasWidth/canvasHeight unit space.
+  // Nullable — a stall without geometry simply doesn't render on the plan yet.
+  // posX/posY/width/height are always kept as the bounding box — for "rect" stalls that's
+  // the shape itself; for "poly" stalls it's computed from `points` and used as a hit-testing
+  // shortcut, label placement anchor, and scroll-to-stall target, while the actual visible
+  // shape is drawn from `points`.
+  posX       Float?
+  posY       Float?
+  width      Float?
+  height     Float?
+  rotation   Float       @default(0)
+  shape      String      @default("rect") // "rect" | "poly"
+  points     Float[]     @default([]) // [x1,y1,x2,y2,...] when shape = "poly"
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -103,6 +129,25 @@ model Stall {
   holdLinks    HoldStall[]
 
   @@unique([eventId, code])
+}
+
+// Non-interactive floor-plan furniture — walls, aisle dashes, stair blocks, entry/exit
+// arrows, and text labels (PORTICO, MURAL, etc). Purely decorative: nothing else in the
+// app reads or writes this table, it only feeds the interactive floor-plan renderer.
+model FloorPlanDecor {
+  id      String    @id @default(cuid())
+  eventId String
+  kind    DecorKind
+  posX    Float?
+  posY    Float?
+  width   Float?
+  height  Float?
+  text    String?
+  points  Float[]   @default([]) // polyline points (x1,y1,x2,y2,...) for aisle dashes etc.
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
 }
 
 model Booking {

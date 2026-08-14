@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Image, ShieldAlert } from "lucide-react";
-import { api, type BookedByOrg, type Booking, type Category, type Event, type Hold, type Stall } from "../lib/api";
+import { Image, LayoutGrid, Map, ShieldAlert } from "lucide-react";
+import {
+  api,
+  type BookedByOrg,
+  type Booking,
+  type Category,
+  type Event,
+  type FloorPlanStall,
+  type Hold,
+  type Stall,
+} from "../lib/api";
 import { FloorMap } from "../components/FloorMap";
+import { FloorPlan } from "../components/floorplan/FloorPlan";
 import { NewBookingPanel } from "../components/NewBookingPanel";
 import { BookingDetailPanel } from "../components/BookingDetailPanel";
 import { BlockStallsPanel } from "../components/BlockStallsPanel";
@@ -15,8 +25,10 @@ import { Topbar } from "../components/Topbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 type Tab = "map" | "bookings" | "reports" | "setup";
+type MapViewMode = "grid" | "layout";
 
 const LEGEND: { swatch: string; label: string }[] = [
   { swatch: "bg-card border border-border", label: "Available" },
@@ -42,6 +54,7 @@ export function EventDetailPage() {
   }>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [blockMode, setBlockMode] = useState(false);
+  const [viewMode, setViewMode] = useState<MapViewMode>("layout");
 
   const load = useCallback(async () => {
     if (!slug) return;
@@ -97,6 +110,39 @@ export function EventDetailPage() {
     if (!holdId) return;
     await api.delete(`/holds/${holdId}`);
     load();
+  }
+
+  // The Layout view fetches its own richer stall data (geometry + computed payment-aware
+  // status) from a separate endpoint, so its click handlers hand back FloorPlanStall — bridge
+  // to the real Stall objects already loaded here (by code, which is unique per event) to
+  // reuse the exact same booking/block panels and handlers as the Grid view.
+  function findStallByCode(code: string): Stall | undefined {
+    return stalls.find((s) => s.code === code);
+  }
+
+  function bookFloorStalls(floorStalls: FloorPlanStall[]) {
+    const real = floorStalls.map((f) => findStallByCode(f.code)).filter((s): s is Stall => !!s);
+    setSelected(new Set(real.map((s) => s.id)));
+  }
+
+  function blockFloorStalls(floorStalls: FloorPlanStall[]) {
+    const real = floorStalls.map((f) => findStallByCode(f.code)).filter((s): s is Stall => !!s);
+    setSelected(new Set(real.map((s) => s.id)));
+  }
+
+  function viewFloorBooked(floorStall: FloorPlanStall) {
+    const real = findStallByCode(floorStall.code);
+    if (real) viewBookedStall(real);
+  }
+
+  function viewFloorBlocked(floorStall: FloorPlanStall) {
+    const real = findStallByCode(floorStall.code);
+    if (real) viewBlockedStall(real);
+  }
+
+  function releaseFloorBlock(floorStall: FloorPlanStall) {
+    const real = findStallByCode(floorStall.code);
+    if (real) releaseBlock(real);
   }
 
   function closeNewBooking() {
@@ -181,14 +227,39 @@ export function EventDetailPage() {
           <TabsContent value="map">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                {LEGEND.map((l) => (
-                  <div key={l.label} className="flex items-center gap-1.5">
-                    <span className={`size-3 rounded ${l.swatch}`} />
-                    {l.label}
-                  </div>
-                ))}
+                {viewMode === "grid" &&
+                  LEGEND.map((l) => (
+                    <div key={l.label} className="flex items-center gap-1.5">
+                      <span className={`size-3 rounded ${l.swatch}`} />
+                      {l.label}
+                    </div>
+                  ))}
               </div>
               <div className="flex items-center gap-2">
+                <div className="flex rounded-lg border border-border bg-card p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("grid")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition",
+                      viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <LayoutGrid className="size-3.5" />
+                    Grid
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("layout")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition",
+                      viewMode === "layout" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Map className="size-3.5" />
+                    Layout
+                  </button>
+                </div>
                 <LayoutPhotoDialog
                   imageUrl={event.layoutImageUrl}
                   trigger={
@@ -224,15 +295,29 @@ export function EventDetailPage() {
               </p>
             )}
 
-            <FloorMap
-              stalls={stalls}
-              selected={selected}
-              blockMode={blockMode}
-              onToggleSelect={toggleSelect}
-              onViewBooked={viewBookedStall}
-              onViewBlocked={viewBlockedStall}
-              onReleaseBlock={releaseBlock}
-            />
+            {viewMode === "grid" ? (
+              <FloorMap
+                stalls={stalls}
+                selected={selected}
+                blockMode={blockMode}
+                onToggleSelect={toggleSelect}
+                onViewBooked={viewBookedStall}
+                onViewBlocked={viewBlockedStall}
+                onReleaseBlock={releaseBlock}
+              />
+            ) : (
+              <FloorPlan
+                key={blockMode ? "block" : "book"}
+                eventId={eventId}
+                refreshKey={refreshKey}
+                blockMode={blockMode}
+                onBookSelected={bookFloorStalls}
+                onBlockSelected={blockFloorStalls}
+                onViewBooked={viewFloorBooked}
+                onViewBlocked={viewFloorBlocked}
+                onReleaseBlock={releaseFloorBlock}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="bookings">
