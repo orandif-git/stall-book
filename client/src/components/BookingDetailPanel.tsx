@@ -89,6 +89,13 @@ export function BookingDetailPanel({ booking, onClose, onCancelled, onPaymentAdd
             {booking.email && <div className="text-sm text-muted-foreground">{booking.email}</div>}
           </div>
 
+          {booking.productService && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2">
+              <div className="text-xs font-medium text-muted-foreground">Exhibiting</div>
+              <div className="text-sm text-foreground">{booking.productService}</div>
+            </div>
+          )}
+
           <div>
             <div className="mb-1.5 text-xs font-medium text-muted-foreground">Stalls</div>
             <div className="flex flex-wrap gap-1.5">

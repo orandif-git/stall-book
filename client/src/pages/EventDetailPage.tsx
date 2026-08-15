@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Image, LayoutGrid, Map, ShieldAlert } from "lucide-react";
+import { Check, Copy, Image, LayoutGrid, Map, ShieldAlert } from "lucide-react";
 import {
   api,
   type BookedByOrg,
@@ -48,13 +48,27 @@ export function EventDetailPage() {
   const [viewBlocked, setViewBlocked] = useState<Hold | null>(null);
   const [bookingPrefill, setBookingPrefill] = useState<{
     exhibitorName?: string;
+    company?: string;
     phone?: string;
+    email?: string;
+    address?: string;
+    city?: string;
+    productService?: string;
+    notes?: string;
     bookedByOrg?: BookedByOrg;
     holdId?: string;
   }>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [blockMode, setBlockMode] = useState(false);
   const [viewMode, setViewMode] = useState<MapViewMode>("layout");
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  async function copyBookingLink() {
+    if (!event) return;
+    await navigator.clipboard.writeText(`${window.location.origin}/book/${event.slug}`);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  }
 
   const load = useCallback(async () => {
     if (!slug) return;
@@ -156,7 +170,13 @@ export function EventDetailPage() {
     setSelected(new Set(hold.stalls.map((s) => s.stall.id)));
     setBookingPrefill({
       exhibitorName: hold.exhibitorName ?? "",
+      company: hold.company ?? "",
       phone: hold.phone ?? "",
+      email: hold.email ?? "",
+      address: hold.address ?? "",
+      city: hold.city ?? "",
+      productService: hold.productService ?? "",
+      notes: hold.notes ?? "",
       bookedByOrg: hold.bookedByOrg,
       holdId: hold.id,
     });
@@ -260,6 +280,10 @@ export function EventDetailPage() {
                     Layout
                   </button>
                 </div>
+                <Button size="sm" variant="outline" onClick={copyBookingLink}>
+                  {linkCopied ? <Check /> : <Copy />}
+                  {linkCopied ? "Copied" : "Copy Booking Link"}
+                </Button>
                 <LayoutPhotoDialog
                   imageUrl={event.layoutImageUrl}
                   trigger={
@@ -350,7 +374,13 @@ export function EventDetailPage() {
           onClose={closeNewBooking}
           onBooked={afterChange}
           initialExhibitorName={bookingPrefill.exhibitorName}
+          initialCompany={bookingPrefill.company}
           initialPhone={bookingPrefill.phone}
+          initialEmail={bookingPrefill.email}
+          initialAddress={bookingPrefill.address}
+          initialCity={bookingPrefill.city}
+          initialProductService={bookingPrefill.productService}
+          initialNotes={bookingPrefill.notes}
           initialBookedByOrg={bookingPrefill.bookedByOrg}
           holdId={bookingPrefill.holdId}
         />
@@ -370,6 +400,7 @@ export function EventDetailPage() {
           hold={viewBlocked}
           onClose={() => setViewBlocked(null)}
           onReleased={afterChange}
+          onApproved={afterChange}
           onConfirmBooking={confirmHoldAsBooking}
         />
       )}

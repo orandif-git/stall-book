@@ -92,6 +92,40 @@ holdsRouter.get("/holds/:id", async (req, res) => {
   res.json(hold);
 });
 
+// Approve a public request WITHOUT collecting payment yet: the stall stays exactly as
+// BLOCKED as it already is — the only change is source PUBLIC_REQUEST -> ADMIN, which moves
+// it out of the admin's "Requests" queue into the regular "Blocked" list. Payment is collected
+// later via the existing "Confirm as booking" action on that same (now-admin) hold, whenever
+// it actually comes in. No stall-status change, no new state — a Hold already *is* "reserved,
+// no payment yet"; this just reclassifies who owns following up on it.
+holdsRouter.patch("/holds/:id/approve", async (req: AuthedRequest, res) => {
+  const hold = await prisma.hold.findUnique({ where: { id: req.params.id }, include: { stalls: { include: { stall: true } } } });
+  if (!hold) return res.status(404).json({ error: "Hold not found" });
+  if (hold.source !== "PUBLIC_REQUEST") {
+    return res.status(400).json({ error: "Only a pending public request can be approved this way" });
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.hold.update({ where: { id: hold.id }, data: { source: "ADMIN" } });
+    const stallCodes = hold.stalls.map((s) => s.stall.code).join(", ");
+    await logActivity(tx, {
+      eventId: hold.eventId,
+      holdId: hold.id,
+      action: "APPROVED",
+      description: `Approved request for ${stallCodes} — reserved, payment to be collected later`,
+      performedById: req.admin?.id,
+    });
+    // Fetched fresh (not returned from the update above) so `activity` includes the entry
+    // just logged, not a stale snapshot from before it existed.
+    return tx.hold.findUniqueOrThrow({
+      where: { id: hold.id },
+      include: { stalls: { include: { stall: true } }, activity: { orderBy: { createdAt: "desc" } } },
+    });
+  });
+
+  res.json(updated);
+});
+
 // Release now: stalls go back to AVAILABLE, hold is removed.
 holdsRouter.delete("/holds/:id", async (req, res) => {
   const hold = await prisma.hold.findUnique({ where: { id: req.params.id }, include: { stalls: true } });

@@ -72,3 +72,11 @@ export function fontSizeForBox(width: number, height: number, codeLength: number
   const f = Math.min(height * 0.42, width / (codeLength * 0.62));
   return Math.max(6, Math.min(f, 13));
 }
+
+// Maps the real layout photo's pixel space (1600x1131) onto the canvas coordinate space, fit
+// via a least-squares affine from reference points spread across the whole image. Shared by
+// the admin floor plan (toggleable) and the public stall picker (always on) so both render the
+// same calibrated overlay instead of drifting apart.
+export const PHOTO_MATRIX = [1.00365, 0.00105, -0.00424, 1.01894, -9.567, -11.671] as const;
+export const PHOTO_WIDTH = 1600;
+export const PHOTO_HEIGHT = 1131;

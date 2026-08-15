@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronRight, KeyRound, LogOut, Store, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, KeyRound, LogOut, Plug, Store, Users } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { ROLE_LABEL } from "../lib/status";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
@@ -68,6 +68,14 @@ export function Topbar({ crumb }: { crumb?: ReactNode }) {
               <Link to="/users">
                 <Users />
                 User access
+              </Link>
+            </DropdownMenuItem>
+          )}
+          {admin?.role === "SUPER_ADMIN" && (
+            <DropdownMenuItem asChild className="py-2">
+              <Link to="/integrations">
+                <Plug />
+                Integrations
               </Link>
             </DropdownMenuItem>
           )}

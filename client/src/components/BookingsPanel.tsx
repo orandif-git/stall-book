@@ -19,7 +19,7 @@ interface Props {
 }
 
 type OrgFilter = BookedByOrg | "ALL";
-type StatusFilter = "PARTIAL" | "PAID" | "BLOCKED" | "ALL";
+type StatusFilter = "PARTIAL" | "PAID" | "BLOCKED" | "REQUEST" | "ALL";
 type Row = { kind: "booking"; booking: Booking } | { kind: "hold"; hold: Hold };
 
 const ORG_FILTERS: { value: OrgFilter; label: string }[] = [
@@ -33,6 +33,7 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "PARTIAL", label: PAYMENT_STATUS_LABEL.PARTIAL },
   { value: "PAID", label: PAYMENT_STATUS_LABEL.PAID },
   { value: "BLOCKED", label: "Blocked" },
+  { value: "REQUEST", label: "Requests" },
 ];
 
 function rowCreatedAt(row: Row) {
@@ -53,21 +54,30 @@ export function BookingsPanel({ eventId, onSelect, onSelectHold, refreshKey }: P
     };
 
     const bookingsReq =
-      statusFilter === "BLOCKED"
+      statusFilter === "BLOCKED" || statusFilter === "REQUEST"
         ? Promise.resolve({ data: [] as Booking[] })
         : api.get<Booking[]>(`/events/${eventId}/bookings`, {
             params: { ...commonParams, ...(statusFilter !== "ALL" ? { paymentStatus: statusFilter } : {}) },
           });
 
     const holdsReq =
-      statusFilter === "ALL" || statusFilter === "BLOCKED"
+      statusFilter === "ALL" || statusFilter === "BLOCKED" || statusFilter === "REQUEST"
         ? api.get<Hold[]>(`/events/${eventId}/holds`, { params: commonParams })
         : Promise.resolve({ data: [] as Hold[] });
 
     Promise.all([bookingsReq, holdsReq]).then(([b, h]) => {
+      // "Blocked"/"Requests" are the same underlying Hold, split here by who created it — kept
+      // visually and structurally separate so a customer's pending request never reads as just
+      // another admin block.
+      const holds =
+        statusFilter === "BLOCKED"
+          ? h.data.filter((hold) => hold.source === "ADMIN")
+          : statusFilter === "REQUEST"
+            ? h.data.filter((hold) => hold.source === "PUBLIC_REQUEST")
+            : h.data;
       const combined: Row[] = [
         ...b.data.map((booking): Row => ({ kind: "booking", booking })),
-        ...h.data.map((hold): Row => ({ kind: "hold", hold })),
+        ...holds.map((hold): Row => ({ kind: "hold", hold })),
       ];
       combined.sort((a, c) => new Date(rowCreatedAt(c)).getTime() - new Date(rowCreatedAt(a)).getTime());
       setRows(combined);
@@ -114,6 +124,7 @@ export function BookingsPanel({ eventId, onSelect, onSelectHold, refreshKey }: P
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Reference</TableHead>
                   <TableHead>Exhibitor</TableHead>
                   <TableHead>Stalls</TableHead>
                   <TableHead>By</TableHead>
@@ -131,6 +142,7 @@ export function BookingsPanel({ eventId, onSelect, onSelectHold, refreshKey }: P
                       onClick={() => (row.kind === "booking" ? onSelect(row.booking) : onSelectHold(row.hold))}
                       className="cursor-pointer"
                     >
+                      <TableCell className="font-mono text-xs text-muted-foreground">{d.reference}</TableCell>
                       <TableCell>
                         <div className="font-medium text-foreground">{d.name}</div>
                         <div className="text-xs text-muted-foreground">{d.phone}</div>
@@ -164,6 +176,7 @@ export function BookingsPanel({ eventId, onSelect, onSelectHold, refreshKey }: P
                   <CardContent className="space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
                       <div>
+                        <div className="font-mono text-[11px] text-muted-foreground">{d.reference}</div>
                         <div className="font-medium text-foreground">{d.name}</div>
                         <div className="text-xs text-muted-foreground">{d.phone}</div>
                       </div>
@@ -194,6 +207,7 @@ function rowDisplay(row: Row) {
     const b = row.booking;
     return {
       id: b.id,
+      reference: b.reference ?? "—",
       name: b.exhibitorName,
       phone: b.phone,
       stallCodes: b.stalls.map((s) => s.stall.code).join(", "),
@@ -205,16 +219,18 @@ function rowDisplay(row: Row) {
     };
   }
   const h = row.hold;
+  const isRequest = h.source === "PUBLIC_REQUEST";
   return {
     id: h.id,
-    name: h.exhibitorName || "Unnamed hold",
+    reference: h.reference ?? "—",
+    name: h.exhibitorName || (isRequest ? "Unnamed request" : "Unnamed hold"),
     phone: h.phone || "—",
     stallCodes: h.stalls.map((s) => s.stall.code).join(", "),
     org: ORG_LABEL_SHORT[h.bookedByOrg],
     total: "—",
     paid: "—",
-    statusLabel: "Blocked",
-    statusClass: STALL_STATUS_STYLES.BLOCKED,
+    statusLabel: isRequest ? "Pending request" : "Blocked",
+    statusClass: isRequest ? "border-primary/30 bg-primary/10 text-primary" : STALL_STATUS_STYLES.BLOCKED,
   };
 }
 

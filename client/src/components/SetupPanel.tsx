@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Pencil, Upload } from "lucide-react";
+import { Check, Copy, Pencil, Upload } from "lucide-react";
 import { api, type Category, type Event } from "../lib/api";
 import { formatCurrency } from "../lib/format";
 import { useAuth } from "../context/AuthContext";
@@ -32,6 +32,7 @@ export function SetupPanel({ eventId, event, categories, onChanged }: Props) {
         {isSuperAdmin && <CategoryForm eventId={eventId} onChanged={onChanged} />}
         <BulkGenerateForm eventId={eventId} categories={categories} onChanged={onChanged} />
         <LayoutImageCard eventId={eventId} event={event} onChanged={onChanged} />
+        <PublicLinkCard event={event} />
       </div>
 
       <div>
@@ -408,6 +409,37 @@ function LayoutImageCard({ eventId, event, onChanged }: { eventId: string; event
         <p className="text-xs text-muted-foreground">
           Reference photo only — for admins to view alongside the grid, not for booking.
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PublicLinkCard({ event }: { event: Event }) {
+  const [copied, setCopied] = useState(false);
+  const link = `${window.location.origin}/book/${event.slug}`;
+
+  async function copyLink() {
+    await navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Public booking link</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Share this with exhibitors so they can pick their own stalls and submit a request — no login needed. Every
+          request is phone-verified and lands in Bookings → Requests for your review before it becomes a real booking.
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={copyLink} className="w-full">
+            {copied ? <Check /> : <Copy />}
+            {copied ? "Copied" : "Copy Booking Link"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

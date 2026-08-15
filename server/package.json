@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
-    "verify:layout": "tsx scripts/verify-layout.ts"
+    "verify:layout": "tsx scripts/verify-layout.ts",
+    "backfill:references": "tsx scripts/backfill-references.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

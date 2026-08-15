@@ -6,6 +6,8 @@ import { LoginPage } from "./pages/LoginPage";
 import { EventsListPage } from "./pages/EventsListPage";
 import { EventDetailPage } from "./pages/EventDetailPage";
 import { UserManagementPage } from "./pages/UserManagementPage";
+import { PublicBookingPage } from "./pages/PublicBookingPage";
+import { IntegrationsPage } from "./pages/IntegrationsPage";
 
 function App() {
   return (
@@ -13,6 +15,7 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/book/:eventSlug" element={<PublicBookingPage />} />
           <Route
             path="/events"
             element={
@@ -34,6 +37,14 @@ function App() {
             element={
               <SuperAdminRoute>
                 <UserManagementPage />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="/integrations"
+            element={
+              <SuperAdminRoute>
+                <IntegrationsPage />
               </SuperAdminRoute>
             }
           />

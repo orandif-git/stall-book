@@ -8,6 +8,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Separate instance for the public booking portal (/book/:eventSlug) — deliberately has no
+// auth interceptor, so an admin's token in localStorage can never end up on an anonymous
+// customer's request even if both are open in the same browser.
+export const publicApi = axios.create({ baseURL: "/api/public" });
+
 export interface AdminUser {
   id: string;
   name: string;
@@ -86,6 +91,10 @@ export interface Booking {
   phone: string;
   email?: string | null;
   gst?: string | null;
+  address?: string | null;
+  city?: string | null;
+  productService?: string | null;
+  reference?: string | null;
   totalAmount: string | number;
   amountPaid: string | number;
   paymentStatus: PaymentStatus;
@@ -97,13 +106,23 @@ export interface Booking {
   activity: ActivityLogEntry[];
 }
 
+export type HoldSource = "ADMIN" | "PUBLIC_REQUEST";
+
 export interface Hold {
   id: string;
   eventId: string;
   exhibitorName?: string | null;
+  company?: string | null;
   phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  city?: string | null;
+  productService?: string | null;
   notes?: string | null;
   bookedByOrg: BookedByOrg;
+  source: HoldSource;
+  otpVerifiedAt?: string | null;
+  reference?: string | null;
   releaseAt?: string | null;
   createdAt: string;
   stalls: { stall: Stall }[];
@@ -156,6 +175,79 @@ export interface FloorPlanData {
   layoutImageUrl: string | null;
   stalls: FloorPlanStall[];
   decor: FloorPlanDecorItem[];
+}
+
+// --- Public booking portal ---
+
+export interface PublicEvent {
+  id: string;
+  name: string;
+  slug: string;
+  venue: string;
+  startDate: string;
+  endDate: string;
+  canvasWidth: number;
+  canvasHeight: number;
+  layoutImageUrl: string | null;
+}
+
+export type PublicStallStatus = "AVAILABLE" | "UNAVAILABLE";
+
+export interface PublicFloorPlanStall {
+  id: string;
+  code: string;
+  categoryLabel: string;
+  price: number;
+  colorHex: string | null;
+  posX: number | null;
+  posY: number | null;
+  width: number | null;
+  height: number | null;
+  rotation: number;
+  shape: "rect" | "poly";
+  points: number[];
+  status: PublicStallStatus;
+}
+
+export interface PublicFloorPlanData {
+  canvasWidth: number;
+  canvasHeight: number;
+  layoutImageUrl: string | null;
+  stalls: PublicFloorPlanStall[];
+  decor: FloorPlanDecorItem[];
+}
+
+export interface PublicConfig {
+  turnstileSiteKey: string | null;
+}
+
+// --- WA Setup (Super Admin only) ---
+
+export interface WhatsAppSettings {
+  bspBaseUrl: string;
+  bspApiKeySet: boolean;
+  bspFromPhoneNumberId: string;
+  otpLength: number;
+  otpTtlSeconds: number;
+  otpMaxAttempts: number;
+  otpResendCooldownSeconds: number;
+  turnstileSiteKey: string;
+  turnstileSecretKeySet: boolean;
+  turnstileEnabled: boolean;
+}
+
+export interface FieldBinding {
+  field: string;
+  source: string;
+}
+
+export type MessagePurpose = "OTP";
+
+export interface MessageTemplate {
+  purpose: MessagePurpose;
+  templateName: string;
+  templateLanguage: string;
+  fieldBindings: FieldBinding[];
 }
 
 export interface ReportSummary {

@@ -8,7 +8,7 @@ import { useFloorPlan } from "./useFloorPlan";
 import { DecorLayer } from "./DecorLayer";
 import { StallShape } from "./StallShape";
 import { StallTooltip } from "./StallTooltip";
-import { INK, STATUS_STYLES } from "./planTokens";
+import { INK, PHOTO_MATRIX, STATUS_STYLES } from "./planTokens";
 
 interface Props {
   eventId: string;
@@ -27,14 +27,6 @@ const STATUS_FILTER_OPTIONS: { value: FloorPlanStall["status"]; label: string }[
   { value: "BOOKED_PARTIAL", label: "Partial" },
   { value: "BOOKED_PAID", label: "Paid" },
 ];
-
-// Maps the real layout photo's pixel space onto the canvas coordinate space, fit via least
-// squares from 14 reference points spread across the whole image (F, E/D/S13, B, GA/DA/CA/G
-// island, H column, A1, S1, S14). The canvas positions are a schematic reconstruction of the
-// real drawing, not a pixel trace of it, so a couple of regions (notably the GA/DA/CA/G island)
-// keep a visible ~15-25px drift on this 1500-wide canvas even at the best-fit affine — this
-// overlay is a rough visual reference for the admin, not a pixel-perfect match.
-const PHOTO_MATRIX = [1.00365, 0.00105, -0.00424, 1.01894, -9.567, -11.671] as const;
 
 export function FloorPlan({
   eventId,

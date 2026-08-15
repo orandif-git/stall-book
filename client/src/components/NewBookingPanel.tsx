@@ -25,7 +25,13 @@ interface Props {
   onClose: () => void;
   onBooked: () => void;
   initialExhibitorName?: string;
+  initialCompany?: string;
   initialPhone?: string;
+  initialEmail?: string;
+  initialAddress?: string;
+  initialCity?: string;
+  initialProductService?: string;
+  initialNotes?: string;
   initialBookedByOrg?: BookedByOrg;
   holdId?: string;
 }
@@ -36,7 +42,13 @@ export function NewBookingPanel({
   onClose,
   onBooked,
   initialExhibitorName = "",
+  initialCompany = "",
   initialPhone = "",
+  initialEmail = "",
+  initialAddress = "",
+  initialCity = "",
+  initialProductService = "",
+  initialNotes = "",
   initialBookedByOrg = "MEC",
   holdId,
 }: Props) {
@@ -46,11 +58,14 @@ export function NewBookingPanel({
   const isStaff = admin?.role === "STAFF";
 
   const [exhibitorName, setExhibitorName] = useState(initialExhibitorName);
-  const [company, setCompany] = useState("");
+  const [company, setCompany] = useState(initialCompany);
   const [phone, setPhone] = useState(initialPhone);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [gst, setGst] = useState("");
-  const [notes, setNotes] = useState("");
+  const [address, setAddress] = useState(initialAddress);
+  const [city, setCity] = useState(initialCity);
+  const [productService, setProductService] = useState(initialProductService);
+  const [notes, setNotes] = useState(initialNotes);
   const [bookedByOrg, setBookedByOrg] = useState<BookedByOrg>(
     isStaff && admin ? admin.bookedByOrg : initialBookedByOrg
   );
@@ -83,6 +98,9 @@ export function NewBookingPanel({
         phone,
         email: email || undefined,
         gst: gst || undefined,
+        address: address || undefined,
+        city: city || undefined,
+        productService: productService || undefined,
         notes: notes || undefined,
         bookedByOrg,
         amountPaid: Number(amountPaid),
@@ -152,6 +170,23 @@ export function NewBookingPanel({
             <div className="space-y-1.5">
               <Label htmlFor="nb-gst">GST (optional)</Label>
               <Input id="nb-gst" value={gst} onChange={(e) => setGst(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nb-address">Address</Label>
+              <Input id="nb-address" value={address} onChange={(e) => setAddress(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nb-city">City</Label>
+              <Input id="nb-city" value={city} onChange={(e) => setCity(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nb-product">Product / Service</Label>
+              <Input
+                id="nb-product"
+                placeholder="e.g. Handloom sarees, solar water heaters"
+                value={productService}
+                onChange={(e) => setProductService(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="nb-notes">Notes</Label>

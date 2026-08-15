@@ -45,6 +45,15 @@ enum DecorKind {
   ARROW
 }
 
+enum HoldSource {
+  ADMIN
+  PUBLIC_REQUEST
+}
+
+enum MessagePurpose {
+  OTP
+}
+
 model AdminUser {
   id           String      @id @default(cuid())
   name         String
@@ -72,11 +81,23 @@ model Event {
   canvasHeight  Float    @default(850)
   createdAt     DateTime @default(now())
 
-  categories Category[]
-  stalls     Stall[]
-  bookings   Booking[]
-  holds      Hold[]
-  decor      FloorPlanDecor[]
+  categories     Category[]
+  stalls         Stall[]
+  bookings       Booking[]
+  holds          Hold[]
+  decor          FloorPlanDecor[]
+  requestCounter EventRequestCounter?
+}
+
+// One row per event, atomically incremented to assign each public booking request a
+// sequential, human-readable reference (e.g. "MC-26-00001") — see Hold.reference and
+// server/src/routes/public.ts's submit-request handler. A Prisma `increment` update compiles
+// to an atomic SQL UPDATE, so concurrent submissions never get the same number.
+model EventRequestCounter {
+  eventId String @id
+  count   Int    @default(0)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
 model Category {
@@ -158,6 +179,13 @@ model Booking {
   phone         String
   email         String?
   gst           String?
+  address       String?
+  city          String?
+  productService String?
+  // Human-readable reference, e.g. "MC-26-00001" — reused from Hold.reference when converting
+  // a public request, otherwise freshly assigned (see server/src/lib/reference.ts). Null for
+  // bookings created before this field existed.
+  reference     String?       @unique
   totalAmount   Decimal       @db.Decimal(10, 2)
   amountPaid    Decimal       @default(0) @db.Decimal(10, 2)
   paymentStatus PaymentStatus @default(UNPAID)
@@ -192,9 +220,21 @@ model Hold {
   id            String      @id @default(cuid())
   eventId       String
   exhibitorName String?
+  company       String?
   phone         String?
+  email         String?
+  address       String?
+  city          String?
+  // What the exhibitor plans to showcase/sell — shown to the admin alongside a public request
+  // so they have real context for the approve/reject decision, not just stall codes and price.
+  productService String?
   notes         String?
   bookedByOrg   BookedByOrg @default(MEC)
+  source        HoldSource  @default(ADMIN)
+  otpVerifiedAt DateTime?
+  // Human-readable reference for a public request, e.g. "MC-26-00001" — assigned once, at
+  // submission (see EventRequestCounter), never reformatted later even if the event changes.
+  reference     String?
   releaseAt     DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -251,4 +291,54 @@ model Payment {
   notes     String?
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// A short-lived WhatsApp OTP challenge for the public booking portal — one row per phone
+// number, overwritten on each new send. No relation to any other model; purely a
+// verify-then-discard credential, checked by server/src/lib/otp.ts.
+model OtpVerification {
+  id            String    @id @default(cuid())
+  phone         String    @unique
+  codeHash      String
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(5)
+  expiresAt     DateTime
+  cooldownUntil DateTime
+  verifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+// Singleton — one row holds the whole app's WhatsApp BSP connection + OTP tunables. No
+// multi-tenant split (unlike the BNI project this was modeled on): this app has one WhatsApp
+// Business number for the whole deployment. bspApiKey is never sent back to the browser once
+// set (see server/src/routes/waSettings.ts) — only whether it's set.
+model WhatsAppSettings {
+  id                       String   @id @default(cuid())
+  bspBaseUrl               String?
+  bspApiKey                String?
+  bspFromPhoneNumberId     String?
+  otpLength                Int      @default(6)
+  otpTtlSeconds            Int      @default(300)
+  otpMaxAttempts           Int      @default(5)
+  otpResendCooldownSeconds Int      @default(30)
+  // Cloudflare Turnstile bot-check gate in front of /api/public/otp/request — siteKey is public
+  // (served to the anonymous booking page), turnstileSecretKey never leaves the server (same
+  // never-returned-once-set convention as bspApiKey). turnstileEnabled lets an admin switch the
+  // gate off without losing the saved keys, e.g. if it's ever misbehaving in prod.
+  turnstileSiteKey         String?
+  turnstileSecretKey       String?
+  turnstileEnabled         Boolean  @default(true)
+  updatedAt                DateTime @updatedAt
+}
+
+// One row per message purpose (just OTP today) — fieldBindings maps this app's own data
+// (e.g. "otp.code") onto the BSP payload keys the approved WhatsApp template expects (e.g.
+// "field_1"), same {field, source} shape as the BNI project's template field bindings.
+model MessageTemplate {
+  id               String         @id @default(cuid())
+  purpose          MessagePurpose @unique
+  templateName     String
+  templateLanguage String         @default("en")
+  fieldBindings    Json           @default("[]")
+  updatedAt        DateTime       @updatedAt
 }

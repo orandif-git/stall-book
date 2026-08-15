@@ -2,9 +2,19 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { logActivity } from "../lib/activity.js";
+import { nextReference } from "../lib/reference.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 
 export const bookingsRouter = Router();
+
+// Thrown inside the create-booking transaction when a stall's status no longer matches what
+// was expected — re-checked there (not just before the transaction) to close the race window
+// between the pre-check and the write.
+class BookingConflictError extends Error {
+  constructor(public stallCodes: string[]) {
+    super("Some stalls are no longer available");
+  }
+}
 
 const PAYMENT_MODE_LABEL: Record<string, string> = {
   CASH: "Cash",
@@ -24,6 +34,9 @@ const createBookingSchema = z.object({
   phone: z.string().min(1),
   email: z.string().email().optional().or(z.literal("")),
   gst: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  productService: z.string().optional(),
   notes: z.string().optional(),
   bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).default("MEC"),
   amountPaid: z.coerce.number().positive("Enter an amount received — bookings can't be created unpaid"),
@@ -69,6 +82,9 @@ bookingsRouter.post("/events/:eventId/bookings", async (req: AuthedRequest, res)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { stallIds, holdId, amountPaid, paymentMode, paymentReference, ...exhibitor } = parsed.data;
 
+  const event = await prisma.event.findUnique({ where: { id: req.params.eventId }, select: { startDate: true } });
+  if (!event) return res.status(404).json({ error: "Event not found" });
+
   const stalls = await prisma.stall.findMany({
     where: { id: { in: stallIds }, eventId: req.params.eventId },
     include: { category: true },
@@ -79,65 +95,81 @@ bookingsRouter.post("/events/:eventId/bookings", async (req: AuthedRequest, res)
 
   // Converting a block into a booking: the stalls are expected to still be BLOCKED,
   // held by exactly this hold — not AVAILABLE like a normal new booking.
-  let hold: { id: string; stalls: { stallId: string }[] } | null = null;
+  let hold: { id: string; stalls: { stallId: string }[]; reference: string | null } | null = null;
   if (holdId) {
-    hold = await prisma.hold.findUnique({ where: { id: holdId }, select: { id: true, stalls: true } });
+    hold = await prisma.hold.findUnique({ where: { id: holdId }, select: { id: true, stalls: true, reference: true } });
     if (!hold || hold.stalls.length !== stallIds.length || !hold.stalls.every((s) => stallIds.includes(s.stallId))) {
       return res.status(409).json({ error: "This block no longer matches the selected stalls — refresh and try again" });
     }
   }
 
   const expectedStatus = holdId ? "BLOCKED" : "AVAILABLE";
-  const wrongStatus = stalls.filter((s) => s.status !== expectedStatus);
-  if (wrongStatus.length > 0) {
-    return res.status(409).json({
-      error: "Some stalls are no longer available",
-      stalls: wrongStatus.map((s) => s.code),
-    });
-  }
 
   const totalAmount = stalls.reduce((sum, s) => sum + Number(s.category.price), 0);
   if (amountPaid > totalAmount) {
     return res.status(400).json({ error: `Amount received can't exceed the total (${totalAmount})` });
   }
 
-  const booking = await prisma.$transaction(async (tx) => {
-    if (hold) await tx.hold.delete({ where: { id: hold.id } });
+  let booking;
+  try {
+    booking = await prisma.$transaction(async (tx) => {
+      // Re-checked here, not just before the transaction started — closes the gap where two
+      // requests could both pass the earlier check and both try to book the same stall.
+      const current = await tx.stall.findMany({ where: { id: { in: stallIds } } });
+      const wrongStatus = current.filter((s) => s.status !== expectedStatus);
+      if (wrongStatus.length > 0) {
+        throw new BookingConflictError(wrongStatus.map((s) => s.code));
+      }
 
-    const created = await tx.booking.create({
-      data: {
+      if (hold) await tx.hold.delete({ where: { id: hold.id } });
+
+      // Carry over the request's reference if it already has one (public request, assigned at
+      // submission) rather than issuing a second number for the same request — otherwise
+      // (direct admin booking, or converting an admin-created hold that never had one) assign a
+      // fresh one from the same per-event sequence.
+      const reference = hold?.reference ?? (await nextReference(tx, req.params.eventId, event.startDate));
+
+      const created = await tx.booking.create({
+        data: {
+          eventId: req.params.eventId,
+          ...exhibitor,
+          email: exhibitor.email || undefined,
+          reference,
+          totalAmount,
+          amountPaid,
+          paymentStatus: paymentStatusFor(totalAmount, amountPaid),
+          bookedById: req.admin?.id,
+          stalls: { create: stallIds.map((stallId) => ({ stallId })) },
+          payments: { create: [{ amount: amountPaid, mode: paymentMode, reference: paymentReference }] },
+        },
+        include: { stalls: { include: { stall: true } }, payments: true },
+      });
+      await tx.stall.updateMany({ where: { id: { in: stallIds } }, data: { status: "BOOKED" } });
+
+      const stallCodes = stalls.map((s) => s.code).join(", ");
+      await logActivity(tx, {
         eventId: req.params.eventId,
-        ...exhibitor,
-        email: exhibitor.email || undefined,
-        totalAmount,
-        amountPaid,
-        paymentStatus: paymentStatusFor(totalAmount, amountPaid),
-        bookedById: req.admin?.id,
-        stalls: { create: stallIds.map((stallId) => ({ stallId })) },
-        payments: { create: [{ amount: amountPaid, mode: paymentMode, reference: paymentReference }] },
-      },
-      include: { stalls: { include: { stall: true } }, payments: true },
-    });
-    await tx.stall.updateMany({ where: { id: { in: stallIds } }, data: { status: "BOOKED" } });
+        bookingId: created.id,
+        action: "CREATED",
+        description: `Booked ${stallCodes} for ${exhibitor.exhibitorName}`,
+        performedById: req.admin?.id,
+      });
+      await logActivity(tx, {
+        eventId: req.params.eventId,
+        bookingId: created.id,
+        action: "PAYMENT_ADDED",
+        description: `Recorded ₹${amountPaid.toLocaleString("en-IN")} via ${PAYMENT_MODE_LABEL[paymentMode]}${paymentReference ? ` (ref: ${paymentReference})` : ""}`,
+        performedById: req.admin?.id,
+      });
 
-    const stallCodes = stalls.map((s) => s.code).join(", ");
-    await logActivity(tx, {
-      eventId: req.params.eventId,
-      bookingId: created.id,
-      action: "CREATED",
-      description: `Booked ${stallCodes} for ${exhibitor.exhibitorName}`,
-      performedById: req.admin?.id,
+      return created;
     });
-    await logActivity(tx, {
-      eventId: req.params.eventId,
-      bookingId: created.id,
-      action: "PAYMENT_ADDED",
-      description: `Recorded ₹${amountPaid.toLocaleString("en-IN")} via ${PAYMENT_MODE_LABEL[paymentMode]}${paymentReference ? ` (ref: ${paymentReference})` : ""}`,
-      performedById: req.admin?.id,
-    });
-
-    return created;
-  });
+  } catch (err) {
+    if (err instanceof BookingConflictError) {
+      return res.status(409).json({ error: "Some stalls are no longer available", stalls: err.stallCodes });
+    }
+    throw err;
+  }
 
   res.status(201).json(booking);
 });
@@ -157,6 +189,9 @@ const updateBookingSchema = z.object({
   phone: z.string().min(1).optional(),
   email: z.string().email().optional().or(z.literal("")),
   gst: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  productService: z.string().optional(),
   notes: z.string().optional(),
   bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).optional(),
 });
@@ -167,6 +202,9 @@ const FIELD_LABEL: Record<string, string> = {
   phone: "phone",
   email: "email",
   gst: "GST",
+  address: "address",
+  city: "city",
+  productService: "product/service",
   notes: "notes",
   bookedByOrg: "booked by",
 };

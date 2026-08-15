@@ -33,3 +33,27 @@ export function requireSuperAdmin(req: AuthedRequest, res: Response, next: NextF
   }
   next();
 }
+
+// Public booking portal: proof a phone number just passed WhatsApp OTP verification. Distinct
+// payload shape (`scope`) from the admin token above so the two can never be confused — this
+// token grants no admin access, it only lets the public router create/submit a Hold for the
+// phone it names. Deliberately longer-lived (30m) than the reservation Hold itself (15m), so a
+// customer whose hold lapses mid-form doesn't need to re-verify, just re-select stalls.
+interface PublicOtpTokenPayload {
+  phone: string;
+  scope: "public-otp";
+}
+
+export function signPublicOtpToken(phone: string) {
+  return jwt.sign({ phone, scope: "public-otp" } satisfies PublicOtpTokenPayload, JWT_SECRET, { expiresIn: "30m" });
+}
+
+export function verifyPublicOtpToken(token: string): string | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as PublicOtpTokenPayload;
+    if (decoded.scope !== "public-otp" || !decoded.phone) return null;
+    return decoded.phone;
+  } catch {
+    return null;
+  }
+}
