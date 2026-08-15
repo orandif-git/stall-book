@@ -281,7 +281,7 @@ function StallMap({ data, selected, onToggle }: Props) {
           it down a lot. Turning the phone sideways is the real fix (the map gets more height
           via the landscape: variant below); this is just a nudge toward that, not a substitute
           for it. Matches viewport aspect ratio, so it won't show on typical desktop windows. */}
-      <p className="hidden portrait:block text-center text-[11px] text-muted-foreground">
+      <p className="hidden portrait:max-md:block text-center text-[11px] text-muted-foreground">
         Tip: turn your phone sideways for a bigger view of the floor plan
       </p>
       <div className="flex items-center justify-end gap-1">
@@ -304,7 +304,7 @@ function StallMap({ data, selected, onToggle }: Props) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        className="relative h-[55vh] overflow-auto rounded-lg border landscape:h-[80vh]"
+        className="relative h-[55vh] overflow-auto rounded-lg border landscape:h-[80vh] md:h-[75vh]"
         style={{ borderColor: INK.line2, background: INK.plan, touchAction: "none" }}
       >
         <div style={{ position: "relative", width: canvasPxWidth, height: canvasPxHeight }}>

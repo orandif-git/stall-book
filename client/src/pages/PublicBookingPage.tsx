@@ -154,7 +154,7 @@ export function PublicBookingPage() {
   return (
     <div className="min-h-screen bg-muted/30 pb-28">
       <header className="border-b border-border bg-background px-4 py-4">
-        <div className="mx-auto flex max-w-xl items-center gap-2.5">
+        <div className="mx-auto flex max-w-xl items-center gap-2.5 md:max-w-2xl">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Store className="size-4.5" />
           </span>
@@ -172,7 +172,7 @@ export function PublicBookingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-xl px-4 py-4">
+      <main className="mx-auto max-w-xl px-4 py-4 md:max-w-4xl">
         {step === "pick" && (
           <div className="space-y-3">
             <div>
@@ -187,13 +187,13 @@ export function PublicBookingPage() {
         )}
 
         {step === "verify" && (
-          <div className="rounded-lg border border-border bg-background p-4">
+          <div className="mx-auto max-w-md rounded-lg border border-border bg-background p-4">
             <PublicVerifyStep phone={phone} onPhoneChange={setPhone} onVerified={handleVerified} />
           </div>
         )}
 
         {step === "details" && holdId && (
-          <div className="space-y-3">
+          <div className="mx-auto max-w-md space-y-3">
             {releaseAt && <ReservationCountdown releaseAt={releaseAt} onExpired={handleReselect} />}
             <div className="rounded-lg border border-border bg-background p-4">
               <PublicDetailsForm
@@ -212,7 +212,7 @@ export function PublicBookingPage() {
         )}
 
         {step === "done" && result && (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-background p-6 text-center">
+          <div className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-lg border border-border bg-background p-6 text-center">
             <AnimatedCheck />
             <h1 className="text-lg font-semibold text-foreground">Request submitted</h1>
             <p className="text-sm text-muted-foreground">
@@ -226,7 +226,7 @@ export function PublicBookingPage() {
 
       {step === "pick" && selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background p-4 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
-          <div className="mx-auto flex max-w-xl items-center gap-3">
+          <div className="mx-auto flex max-w-xl items-center gap-3 md:max-w-2xl">
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs text-muted-foreground">{selected.size} stall{selected.size > 1 ? "s" : ""} selected</div>
               <div className="text-base font-semibold text-foreground">{formatCurrency(total)}</div>
