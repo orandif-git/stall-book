@@ -166,7 +166,7 @@ export function PublicBookingPage() {
             <img
               src={chamberLogo}
               alt="Tamil Nadu Chamber of Commerce & Industry, Madurai — Madurai Economic Chamber"
-              className="h-8 w-auto shrink-0 object-contain"
+              className="h-14 w-auto max-w-[45%] shrink-0 object-contain sm:h-16"
             />
           )}
         </div>
