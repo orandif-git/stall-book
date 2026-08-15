@@ -1,0 +1,16 @@
+{
+  "name": "Stall Book — Chamber Trade Fair",
+  "short_name": "Stall Book",
+  "description": "Floor plan, bookings and payments for Chamber Trade Fair 2026.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1219",
+  "theme_color": "#101820",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

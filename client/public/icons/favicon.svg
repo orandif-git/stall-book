@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Stall Book</title>
+  <defs><linearGradient id="p" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#1a2632"/><stop offset="1" stop-color="#080e14"/>
+  </linearGradient></defs>
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#p)"/>
+  <rect x="86" y="86" width="156" height="156" rx="3" fill="#e6edf3" opacity="1"/>
+  <rect x="270" y="86" width="156" height="156" rx="3" fill="#e6edf3" opacity="1"/>
+  <rect x="86" y="270" width="156" height="156" rx="3" fill="#e6edf3" opacity="1"/>
+  <rect x="270" y="270" width="156" height="156" rx="3" fill="#c81d25" opacity="1"/>
+</svg>

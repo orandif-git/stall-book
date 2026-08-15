@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Stall Book</title>
+  <defs><linearGradient id="p" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#1a2632"/><stop offset="1" stop-color="#080e14"/>
+  </linearGradient></defs>
+  <rect width="512" height="512" rx="112" ry="112" fill="url(#p)"/>
+  <rect x="118" y="124" width="46" height="156" rx="3" fill="#e6edf3" opacity="0.62"/>
+  <rect x="118" y="292" width="46" height="72" rx="3" fill="#e6edf3" opacity="0.62"/>
+  <rect x="176" y="124" width="64" height="72" rx="3" fill="#e6edf3" opacity="0.9"/>
+  <rect x="252" y="124" width="64" height="72" rx="3" fill="#e6edf3" opacity="0.9"/>
+  <rect x="328" y="124" width="64" height="72" rx="3" fill="#e6edf3" opacity="0.9"/>
+  <rect x="176" y="208" width="64" height="72" rx="3" fill="#e6edf3" opacity="0.9"/>
+  <rect x="252" y="208" width="64" height="72" rx="3" fill="#c81d25" opacity="1"/>
+  <rect x="328" y="208" width="64" height="72" rx="3" fill="#e6edf3" opacity="0.9"/>
+  <rect x="176" y="292" width="64" height="72" rx="3" fill="#e6edf3" opacity="0.9"/>
+  <rect x="252" y="292" width="64" height="72" rx="3" fill="#e6edf3" opacity="0.9"/>
+  <rect x="328" y="292" width="64" height="72" rx="3" fill="#e6edf3" opacity="0.9"/>
+  <rect x="118" y="392" width="274" height="11" fill="#c81d25"/>
+</svg>
