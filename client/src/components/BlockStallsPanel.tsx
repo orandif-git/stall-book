@@ -95,7 +95,6 @@ export function BlockStallsPanel({ eventId, stalls, onClose, onBlocked }: Props)
               <Label htmlFor="bl-company">Company</Label>
               <Input
                 id="bl-company"
-                placeholder="Shown on hover, and publicly if that's turned on"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 required
