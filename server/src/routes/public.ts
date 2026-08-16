@@ -70,11 +70,11 @@ publicRouter.get("/events/:slug", async (req, res) => {
 
 // GET /api/public/events/:slug/floorplan — a stripped-down version of the admin /floorplan
 // endpoint: no exhibitor contact name/payment amounts/block reason, and BOOKED/BLOCKED both
-// collapse to a single UNAVAILABLE status. The one deliberate exception is the booked stall's
+// collapse to a single UNAVAILABLE status. The one deliberate exception is a taken stall's
 // company name — shown publicly as a simple exhibitor directory (confirmed with the user this
-// is wanted); a BLOCKED stall never has a Booking behind it, so this only ever surfaces for
-// actual confirmed bookings, never an admin's in-progress hold. See server/src/routes/stalls.ts
-// for the admin version this deliberately does not reuse.
+// is wanted), for any non-AVAILABLE status: an actual Booking or any Hold (block or public
+// request, approved or still pending) that has a company on file. See server/src/routes/
+// stalls.ts for the admin version this deliberately does not reuse.
 publicRouter.get("/events/:slug/floorplan", async (req, res) => {
   const event = await prisma.event.findUnique({
     where: { slug: req.params.slug },
@@ -87,7 +87,11 @@ publicRouter.get("/events/:slug/floorplan", async (req, res) => {
   const [stalls, decor] = await Promise.all([
     prisma.stall.findMany({
       where: { eventId: event.id },
-      include: { category: true, bookingLinks: { include: { booking: { select: { company: true } } } } },
+      include: {
+        category: true,
+        bookingLinks: { include: { booking: { select: { company: true } } } },
+        holdLinks: { include: { hold: { select: { company: true } } } },
+      },
     }),
     prisma.floorPlanDecor.findMany({ where: { eventId: event.id } }),
   ]);
@@ -110,7 +114,9 @@ publicRouter.get("/events/:slug/floorplan", async (req, res) => {
       shape: s.shape,
       points: s.points,
       status: s.status === "AVAILABLE" ? ("AVAILABLE" as const) : ("UNAVAILABLE" as const),
-      company: event.showCompanyPublicly ? (s.bookingLinks[0]?.booking.company ?? null) : null,
+      company: event.showCompanyPublicly
+        ? (s.bookingLinks[0]?.booking.company ?? s.holdLinks[0]?.hold.company ?? null)
+        : null,
     })),
     decor: decor.map((d) => ({
       id: d.id,
