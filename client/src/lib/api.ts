@@ -8,6 +8,31 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// An expired/invalid token (session timeout, JWT expiry, server restart with a rotated
+// secret, etc.) isn't caught anywhere else — every page here just fires its own api.get() on
+// mount with no auth-specific error handling, so a 401 previously just left the page's data
+// state stuck at "loading" forever: header renders (it only reads the stale AuthContext admin
+// object), but every tab/panel that depends on real data never appears. This is the one place
+// that sees every request, so it's the right place to catch it globally: clear the stale
+// session and send the user back to login instead of a silent blank screen.
+// The login POST itself is excluded — a wrong password is a normal 401 the login form already
+// handles inline, not an expired-session case, and redirecting *from* the login page on a
+// failed login attempt would stomp on that error before it ever renders.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const isLoginRequest = error.config?.url === "/auth/login";
+    if (error.response?.status === 401 && !isLoginRequest) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("admin");
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
 // Separate instance for the public booking portal (/book/:eventSlug) — deliberately has no
 // auth interceptor, so an admin's token in localStorage can never end up on an anonymous
 // customer's request even if both are open in the same browser.
