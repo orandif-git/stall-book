@@ -1,6 +1,6 @@
 import { Lock, Check } from "lucide-react";
 import type { FloorPlanStall } from "../../lib/api";
-import { STATUS_STYLES, fontSizeForBox, INK } from "./planTokens";
+import { STATUS_STYLES, fontSizeForBox, polygonCentroid, INK } from "./planTokens";
 
 interface Props {
   stall: FloorPlanStall;
@@ -37,6 +37,15 @@ export function StallShape({ stall, selected, dimmed, hit, onClick, onHover }: P
           .join(", ")})`
       : undefined;
 
+  // Label anchor: the polygon centroid for "poly" stalls (stays inside notched shapes), the
+  // plain box center otherwise — see polygonCentroid's comment in planTokens.ts.
+  const labelAnchor =
+    stall.shape === "poly" && stall.points.length >= 6
+      ? polygonCentroid(stall.points)
+      : { x: stall.posX! + stall.width! / 2, y: stall.posY! + stall.height! / 2 };
+  const labelLeftPct = ((labelAnchor.x - stall.posX!) / stall.width!) * 100;
+  const labelTopPct = ((labelAnchor.y - stall.posY!) / stall.height!) * 100;
+
   return (
     <button
       type="button"
@@ -59,9 +68,6 @@ export function StallShape({ stall, selected, dimmed, hit, onClick, onHover }: P
         fontWeight: 700,
         fontSize,
         lineHeight: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         opacity: dimmed ? 0.16 : 1,
         filter: dimmed ? "grayscale(1)" : undefined,
         cursor: "pointer",
@@ -91,7 +97,18 @@ export function StallShape({ stall, selected, dimmed, hit, onClick, onHover }: P
           <span className="absolute inset-x-0 bottom-0 bg-white/45" style={{ height: `${paidPct}%` }} />
         )}
       </span>
-      <span className="relative z-10 flex items-center gap-0.5 px-0.5">
+      <span
+        className="absolute z-10 flex items-center gap-0.5 px-0.5"
+        style={{
+          left: `${labelLeftPct}%`,
+          top: `${labelTopPct}%`,
+          transform: "translate(-50%, -50%)",
+          // Only poly stalls need a hard width cap (their centroid can sit near a notch edge,
+          // where unconstrained text would run outside the shape) — rect stalls keep the old
+          // unconstrained behavior so short codes that were already fine stay pixel-identical.
+          ...(stall.shape === "poly" ? { maxWidth: stall.width!, overflow: "hidden" } : {}),
+        }}
+      >
         {style.glyph === "lock" && <Lock className="size-2.5 shrink-0" />}
         {style.glyph === "check" && <Check className="size-2.5 shrink-0" />}
         <span className="truncate">{stall.code}</span>

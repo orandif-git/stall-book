@@ -8,7 +8,7 @@ import { useFloorPlan } from "./useFloorPlan";
 import { DecorLayer } from "./DecorLayer";
 import { StallShape } from "./StallShape";
 import { StallTooltip } from "./StallTooltip";
-import { INK, PHOTO_MATRIX, STATUS_STYLES } from "./planTokens";
+import { INK, PHOTO_HEIGHT, PHOTO_MATRIX, PHOTO_WIDTH, STATUS_STYLES } from "./planTokens";
 
 interface Props {
   eventId: string;
@@ -356,8 +356,8 @@ export function FloorPlan({
                 style={{
                   left: 0,
                   top: 0,
-                  width: 1600,
-                  height: 1131,
+                  width: PHOTO_WIDTH,
+                  height: PHOTO_HEIGHT,
                   maxWidth: "none",
                   transformOrigin: "0 0",
                   transform: `matrix(${PHOTO_MATRIX.join(",")})`,

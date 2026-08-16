@@ -73,10 +73,40 @@ export function fontSizeForBox(width: number, height: number, codeLength: number
   return Math.max(6, Math.min(f, 13));
 }
 
-// Maps the real layout photo's pixel space (1600x1131) onto the canvas coordinate space, fit
-// via a least-squares affine from reference points spread across the whole image. Shared by
-// the admin floor plan (toggleable) and the public stall picker (always on) so both render the
-// same calibrated overlay instead of drifting apart.
-export const PHOTO_MATRIX = [1.00365, 0.00105, -0.00424, 1.01894, -9.567, -11.671] as const;
-export const PHOTO_WIDTH = 1600;
-export const PHOTO_HEIGHT = 1131;
+// Area-weighted polygon centroid (shoelace formula) — for irregular "poly" stalls (mostly the
+// premium S-blocks, which have real aisle/door notches cut into them), the bounding-box center
+// can land in the cut-out and float the code label off the visible shape entirely onto the
+// background. The centroid stays inside every notched shape currently in use (verified against
+// all of them), so stall labels anchor here instead of naively centering on the bounding box.
+export function polygonCentroid(points: number[]): { x: number; y: number } {
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+  const n = points.length / 2;
+  for (let i = 0; i < n; i++) {
+    const x1 = points[i * 2];
+    const y1 = points[i * 2 + 1];
+    const j = (i + 1) % n;
+    const x2 = points[j * 2];
+    const y2 = points[j * 2 + 1];
+    const cross = x1 * y2 - x2 * y1;
+    area += cross;
+    cx += (x1 + x2) * cross;
+    cy += (y1 + y2) * cross;
+  }
+  area /= 2;
+  return { x: cx / (6 * area), y: cy / (6 * area) };
+}
+
+// Maps the real layout photo's pixel space (2200x1033) onto the canvas coordinate space. Unlike
+// the previous photo (a hand-traced mockup, calibrated via least-squares fit against
+// approximate reference points), this one *is* the ground truth every stall's geometry below
+// was measured from — color/border-segmented per stall against the real "Chamber Trade Fair
+// 2026 LAYOUT" drawing, matched to known codes, and transformed into canvas units via this
+// exact scale+offset. So the matrix is derived, not fitted: it's the same linear mapping used
+// to produce every posX/posY/width/height/points value in ctf2026-layout.ts, which is why the
+// photo and the stall shapes align exactly with no drift. Shared by the admin floor plan
+// (toggleable) and the public stall picker (always on).
+export const PHOTO_MATRIX = [0.72807, 0, 0, 0.72228, 1.265, 115.657] as const;
+export const PHOTO_WIDTH = 2200;
+export const PHOTO_HEIGHT = 1033;

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DecorLayer } from "../floorplan/DecorLayer";
 import { PublicStallShape } from "./PublicStallShape";
+import { PublicStallTooltip } from "./PublicStallTooltip";
 import { INK, PHOTO_HEIGHT, PHOTO_MATRIX, PHOTO_WIDTH } from "../floorplan/planTokens";
 
 interface Props {
@@ -144,6 +145,33 @@ function StallMap({ data, selected, onToggle }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [fitScale, setFitScale] = useState(1);
+  const [hover, setHover] = useState<{ stall: PublicFloorPlanStall; x: number; y: number } | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True for the rest of a gesture once it involves 2 pointers (a pinch) — if one of those
+  // fingers happens to land on a stall button and doesn't move much, the browser still fires a
+  // real click on it once lifted, which would otherwise select/deselect that stall as an
+  // accidental side effect of zooming. Cleared at the start of the *next* gesture (see
+  // onPointerDown), not immediately on pointer-up, since the click fires right after the
+  // fingers lift and needs to still see this as true to get swallowed.
+  const wasPinchRef = useRef(false);
+
+  // Mouse hover keeps re-triggering this on every mousemove (naturally keeping the tooltip
+  // alive) and mouseleave clears it immediately, so the timer is a no-op there. Touch has
+  // neither — pointerdown fires this once with no corresponding "leave" — so the timer is what
+  // actually dismisses it there, standing in for the hover-end signal touch can't produce.
+  function showHover(stall: PublicFloorPlanStall | null, pos?: { x: number; y: number }) {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (!stall || !pos) {
+      setHover(null);
+      return;
+    }
+    setHover({ stall, x: pos.x, y: pos.y });
+    hoverTimerRef.current = setTimeout(() => setHover(null), 2500);
+  }
+
+  useEffect(() => () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+  }, []);
   const dragRef = useRef<{ startX: number; startY: number; scrollX: number; scrollY: number } | null>(null);
   // Multi-touch pinch state — see onPointerDown/Move below. Keyed by pointerId so we can tell
   // a single-finger drag from a two-finger pinch regardless of the order fingers land in.
@@ -214,9 +242,11 @@ function StallMap({ data, selected, onToggle }: Props) {
     // on top of a stall button still means "start pinching," not "tap that stall." Only a
     // *single* pointer starting on a button is left alone, so tap-to-select keeps working.
     const isButton = !!(e.target as HTMLElement).closest("button");
+    if (activePointers.current.size === 0) wasPinchRef.current = false;
     activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     if (activePointers.current.size === 2) {
+      wasPinchRef.current = true;
       // Capture is best-effort (keeps tracking smooth if a finger slides past the viewport's
       // edge) — a rejected capture must not abort the gesture entirely.
       for (const id of activePointers.current.keys()) {
@@ -304,6 +334,15 @@ function StallMap({ data, selected, onToggle }: Props) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onClickCapture={(e) => {
+          // Swallow the click before it ever reaches a stall button's own onClick — see
+          // wasPinchRef's comment above for why this needs to happen here, in the capture
+          // phase, rather than relying on the button to know it was mid-pinch itself.
+          if (wasPinchRef.current) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
         className="relative h-[55vh] overflow-auto rounded-lg border landscape:h-[80vh] md:h-[75vh]"
         style={{ borderColor: INK.line2, background: INK.plan, touchAction: "none" }}
       >
@@ -331,11 +370,18 @@ function StallMap({ data, selected, onToggle }: Props) {
             )}
             <DecorLayer decor={data.decor} canvasWidth={data.canvasWidth} canvasHeight={data.canvasHeight} />
             {data.stalls.map((s) => (
-              <PublicStallShape key={s.id} stall={s} selected={selected.has(s.id)} onToggle={onToggle} />
+              <PublicStallShape
+                key={s.id}
+                stall={s}
+                selected={selected.has(s.id)}
+                onToggle={onToggle}
+                onHover={showHover}
+              />
             ))}
           </div>
         </div>
       </div>
+      <PublicStallTooltip stall={hover?.stall ?? null} x={hover?.x ?? 0} y={hover?.y ?? 0} />
       <p className="text-center text-[11px] text-muted-foreground">Drag to pan · pinch or use +/- to zoom</p>
     </div>
   );

@@ -228,9 +228,14 @@ export function PublicBookingPage() {
         <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background p-4 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
           <div className="mx-auto flex max-w-xl items-center gap-3 md:max-w-2xl">
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs text-muted-foreground">{selected.size} stall{selected.size > 1 ? "s" : ""} selected</div>
+              <div className="truncate text-xs text-muted-foreground">
+                {selected.size} stall{selected.size > 1 ? "s" : ""} · {selectedStalls.map((s) => s.code).join(", ")}
+              </div>
               <div className="text-base font-semibold text-foreground">{formatCurrency(total)}</div>
             </div>
+            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={creatingHold}>
+              Clear
+            </Button>
             <Button onClick={handleContinueFromPick} disabled={creatingHold} size="lg">
               {creatingHold ? "Reserving…" : "Continue"}
             </Button>
