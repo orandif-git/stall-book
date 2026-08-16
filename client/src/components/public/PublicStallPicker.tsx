@@ -315,13 +315,23 @@ function StallMap({ data, selected, onToggle }: Props) {
         Tip: turn your phone sideways for a bigger view of the floor plan
       </p>
       <div className="flex items-center justify-end gap-1">
-        <Button size="icon-sm" variant="outline" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, z - 0.2))} title="Zoom out">
+        <Button
+          size="icon-sm"
+          variant="outline"
+          onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - 0.05) * 100) / 100))}
+          title="Zoom out"
+        >
           <Minus />
         </Button>
         <span className="w-10 text-center text-[11px] font-semibold" style={{ color: INK.ink3 }}>
           {Math.round(zoom * 100)}%
         </span>
-        <Button size="icon-sm" variant="outline" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, z + 0.2))} title="Zoom in">
+        <Button
+          size="icon-sm"
+          variant="outline"
+          onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + 0.05) * 100) / 100))}
+          title="Zoom in"
+        >
           <Plus />
         </Button>
         <Button size="sm" variant="outline" onClick={fitToWidth}>
