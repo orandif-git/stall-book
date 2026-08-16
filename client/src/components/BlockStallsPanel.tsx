@@ -32,9 +32,9 @@ export function BlockStallsPanel({ eventId, stalls, onClose, onBlocked }: Props)
     try {
       await api.post(`/events/${eventId}/holds`, {
         stallIds: stalls.map((s) => s.id),
-        exhibitorName: exhibitorName || undefined,
-        company: company || undefined,
-        phone: phone || undefined,
+        exhibitorName,
+        company,
+        phone,
         notes: notes || undefined,
         bookedByOrg,
         releaseAt: releaseAt || undefined,
@@ -83,26 +83,27 @@ export function BlockStallsPanel({ eventId, stalls, onClose, onBlocked }: Props)
           <form id="block-stalls-form" onSubmit={onSubmit} className="space-y-4">
             <OrgToggle value={bookedByOrg} onChange={setBookedByOrg} />
             <div className="space-y-1.5">
-              <Label htmlFor="bl-name">Held for (optional)</Label>
+              <Label htmlFor="bl-name">Exhibitor name</Label>
               <Input
                 id="bl-name"
-                placeholder="Exhibitor or reason"
                 value={exhibitorName}
                 onChange={(e) => setExhibitorName(e.target.value)}
+                required
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="bl-company">Company (optional)</Label>
+              <Label htmlFor="bl-company">Company</Label>
               <Input
                 id="bl-company"
                 placeholder="Shown on hover, and publicly if that's turned on"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
+                required
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="bl-phone">Phone (optional)</Label>
-              <Input id="bl-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Label htmlFor="bl-phone">Phone</Label>
+              <Input id="bl-phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="bl-notes">Notes</Label>

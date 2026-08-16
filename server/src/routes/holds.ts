@@ -8,9 +8,9 @@ export const holdsRouter = Router();
 
 const createHoldSchema = z.object({
   stallIds: z.array(z.string()).min(1),
-  exhibitorName: z.string().optional(),
-  company: z.string().optional(),
-  phone: z.string().optional(),
+  exhibitorName: z.string().min(1, "Exhibitor name is required"),
+  company: z.string().min(1, "Company is required"),
+  phone: z.string().min(1, "Phone is required"),
   notes: z.string().optional(),
   bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).default("MEC"),
   releaseAt: z.coerce.date().optional(),
