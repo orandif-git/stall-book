@@ -353,7 +353,12 @@ function StallMap({ data, selected, onToggle }: Props) {
             e.stopPropagation();
           }
         }}
-        className="relative h-[55vh] overflow-auto rounded-lg border landscape:h-[80vh] md:h-[75vh]"
+        // max-height, not a fixed height — "Fit" scales the map to the viewport's *width*, so
+        // on a portrait phone the resulting height is often well short of 55vh, and a fixed
+        // height just left that difference as dead space below the map inside the same
+        // bordered box. Sizing to content (capped at the same vh values as before) removes
+        // that gap while still bounding how tall the box can grow once zoomed in.
+        className="relative max-h-[55vh] overflow-auto rounded-lg border landscape:max-h-[80vh] md:max-h-[75vh]"
         style={{ borderColor: INK.line2, background: INK.plan, touchAction: "none" }}
       >
         <div style={{ position: "relative", width: canvasPxWidth, height: canvasPxHeight }}>
