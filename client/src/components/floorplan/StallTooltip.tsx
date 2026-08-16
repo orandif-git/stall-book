@@ -50,8 +50,13 @@ function statusLine(stall: FloorPlanStall) {
   switch (stall.status) {
     case "AVAILABLE":
       return "● Available — click to book";
-    case "BLOCKED":
-      return `▲ Blocked${stall.blockedFor ? ` — ${stall.blockedFor}` : ""}`;
+    case "BLOCKED": {
+      // Company first when it's on file — that's the more useful business detail on hover —
+      // falling back to "held for" (exhibitor name/reason), same as before, when there's no
+      // company yet.
+      const who = stall.company || stall.blockedFor;
+      return `▲ Blocked${who ? ` — ${who}` : ""}`;
+    }
     case "BOOKED_PAID":
       return `● Paid — ${stall.exhibitorName ?? ""}`;
     case "BOOKED_PARTIAL":

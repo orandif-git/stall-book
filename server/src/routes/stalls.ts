@@ -102,6 +102,7 @@ stallsRouter.get("/events/:eventId/floorplan", async (req, res) => {
           ? {
               holdId: hold.id,
               blockedFor: hold.exhibitorName,
+              company: hold.company,
               blockReason: hold.notes,
             }
           : {}),

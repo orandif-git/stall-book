@@ -17,6 +17,7 @@ interface Props {
 
 export function BlockStallsPanel({ eventId, stalls, onClose, onBlocked }: Props) {
   const [exhibitorName, setExhibitorName] = useState("");
+  const [company, setCompany] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [bookedByOrg, setBookedByOrg] = useState<BookedByOrg>("MEC");
@@ -32,6 +33,7 @@ export function BlockStallsPanel({ eventId, stalls, onClose, onBlocked }: Props)
       await api.post(`/events/${eventId}/holds`, {
         stallIds: stalls.map((s) => s.id),
         exhibitorName: exhibitorName || undefined,
+        company: company || undefined,
         phone: phone || undefined,
         notes: notes || undefined,
         bookedByOrg,
@@ -87,6 +89,15 @@ export function BlockStallsPanel({ eventId, stalls, onClose, onBlocked }: Props)
                 placeholder="Exhibitor or reason"
                 value={exhibitorName}
                 onChange={(e) => setExhibitorName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bl-company">Company (optional)</Label>
+              <Input
+                id="bl-company"
+                placeholder="Shown on hover, and publicly if that's turned on"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
