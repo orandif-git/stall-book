@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { Pencil } from "lucide-react";
 import { api, type Booking, type PaymentMode } from "../lib/api";
 import { formatCurrency } from "../lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,14 +30,16 @@ interface Props {
   onClose: () => void;
   onCancelled: () => void;
   onPaymentAdded: () => void;
+  onUpdated: (booking: Booking) => void;
 }
 
-export function BookingDetailPanel({ booking, onClose, onCancelled, onPaymentAdded }: Props) {
+export function BookingDetailPanel({ booking, onClose, onCancelled, onPaymentAdded, onUpdated }: Props) {
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<PaymentMode>("CASH");
   const [reference, setReference] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const pending = Number(booking.totalAmount) - Number(booking.amountPaid);
 
@@ -83,8 +88,27 @@ export function BookingDetailPanel({ booking, onClose, onCancelled, onPaymentAdd
             <div className="mb-1 flex items-center gap-2">
               <div className="font-semibold text-foreground">{booking.exhibitorName}</div>
               <Badge variant="outline">{ORG_LABEL[booking.bookedByOrg]}</Badge>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="ml-auto"
+                title="Edit booking details"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil />
+              </Button>
             </div>
-            {booking.company && <div className="text-sm text-muted-foreground">{booking.company}</div>}
+            {booking.company ? (
+              <div className="text-sm text-muted-foreground">{booking.company}</div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-sm text-warning underline-offset-2 hover:underline"
+              >
+                No company on file — add one
+              </button>
+            )}
             <div className="text-sm text-muted-foreground">{booking.phone}</div>
             {booking.email && <div className="text-sm text-muted-foreground">{booking.email}</div>}
           </div>
@@ -199,6 +223,133 @@ export function BookingDetailPanel({ booking, onClose, onCancelled, onPaymentAdd
           </AlertDialog>
         </div>
       </SheetContent>
+
+      {editing && (
+        <EditBookingDetailsSheet
+          booking={booking}
+          onClose={() => setEditing(false)}
+          onSaved={(updated) => {
+            onUpdated(updated);
+            setEditing(false);
+          }}
+        />
+      )}
     </Sheet>
   );
+}
+
+// Same pattern as SetupPanel's EditCategorySheet — a stacked Sheet triggered by the pencil
+// button above, not an inline toggle, so the read-only summary view and the edit form never
+// have to share layout/validation state.
+function EditBookingDetailsSheet({
+  booking,
+  onClose,
+  onSaved,
+}: {
+  booking: Booking;
+  onClose: () => void;
+  onSaved: (updated: Booking) => void;
+}) {
+  const [exhibitorName, setExhibitorName] = useState(booking.exhibitorName);
+  const [company, setCompany] = useState(booking.company ?? "");
+  const [phone, setPhone] = useState(booking.phone);
+  const [email, setEmail] = useState(booking.email ?? "");
+  const [address, setAddress] = useState(booking.address ?? "");
+  const [city, setCity] = useState(booking.city ?? "");
+  const [productService, setProductService] = useState(booking.productService ?? "");
+  const [notes, setNotes] = useState(booking.notes ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const { data } = await api.patch<Booking>(`/bookings/${booking.id}`, {
+        exhibitorName,
+        company,
+        phone,
+        email: email || undefined,
+        address: address || undefined,
+        city: city || undefined,
+        productService: productService || undefined,
+        notes: notes || undefined,
+      });
+      onSaved(data);
+    } catch (err) {
+      setError(axiosMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle>Edit booking details</SheetTitle>
+        </SheetHeader>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4">
+          {error && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          <form id="edit-booking-form" onSubmit={onSubmit} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="eb-name">Exhibitor name</Label>
+              <Input id="eb-name" value={exhibitorName} onChange={(e) => setExhibitorName(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eb-company">Company</Label>
+              <Input id="eb-company" value={company} onChange={(e) => setCompany(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eb-phone">Phone</Label>
+              <Input id="eb-phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eb-email">Email</Label>
+              <Input id="eb-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eb-address">Address</Label>
+              <Input id="eb-address" value={address} onChange={(e) => setAddress(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eb-city">City</Label>
+              <Input id="eb-city" value={city} onChange={(e) => setCity(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eb-product">Product / Service</Label>
+              <Input id="eb-product" value={productService} onChange={(e) => setProductService(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="eb-notes">Notes</Label>
+              <Textarea id="eb-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+            </div>
+          </form>
+        </div>
+
+        <SheetFooter>
+          <Button type="submit" form="edit-booking-form" disabled={submitting}>
+            {submitting ? "Saving…" : "Save changes"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function axiosMessage(err: unknown): string {
+  if (err && typeof err === "object" && "response" in err) {
+    const response = (err as { response?: { data?: { error?: unknown } } }).response;
+    const e = response?.data?.error;
+    if (typeof e === "string") return e;
+    if (e) return JSON.stringify(e);
+  }
+  return "Something went wrong";
 }

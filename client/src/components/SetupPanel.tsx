@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { LayoutPhotoDialog } from "./LayoutPhotoDialog";
 import { ActivityTimeline } from "./ActivityTimeline";
 
@@ -33,6 +34,7 @@ export function SetupPanel({ eventId, event, categories, onChanged }: Props) {
         <BulkGenerateForm eventId={eventId} categories={categories} onChanged={onChanged} />
         <LayoutImageCard eventId={eventId} event={event} onChanged={onChanged} />
         <PublicLinkCard event={event} />
+        <PublicDirectoryCard eventId={eventId} event={event} onChanged={onChanged} />
       </div>
 
       <div>
@@ -440,6 +442,49 @@ function PublicLinkCard({ event }: { event: Event }) {
             {copied ? "Copied" : "Copy Booking Link"}
           </Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Off by default (see the schema comment on Event.showCompanyPublicly) — a booked stall's
+// company name is otherwise-private business info, so exposing it on the public booking link
+// is an explicit opt-in here, not the default.
+function PublicDirectoryCard({ eventId, event, onChanged }: { eventId: string; event: Event; onChanged: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function toggle(next: boolean) {
+    setError(null);
+    setSaving(true);
+    try {
+      await api.patch(`/events/${eventId}`, { showCompanyPublicly: next });
+      onChanged();
+    } catch (err) {
+      setError(axiosMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Public exhibitor directory</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
+          <div>
+            <div className="text-sm font-medium text-foreground">Show company name</div>
+            <p className="text-xs text-muted-foreground">
+              {event.showCompanyPublicly
+                ? "Visitors on the public booking link see which company is in each booked stall."
+                : "Booked stalls just show as unavailable — no company name shown publicly."}
+            </p>
+          </div>
+          <Switch checked={event.showCompanyPublicly} disabled={saving} onCheckedChange={toggle} />
+        </div>
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </CardContent>
     </Card>
   );

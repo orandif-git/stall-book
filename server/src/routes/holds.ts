@@ -92,6 +92,64 @@ holdsRouter.get("/holds/:id", async (req, res) => {
   res.json(hold);
 });
 
+const updateHoldSchema = z.object({
+  exhibitorName: z.string().min(1).optional(),
+  company: z.string().min(1, "Company is required").optional(),
+  phone: z.string().min(1).optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  productService: z.string().optional(),
+  notes: z.string().optional(),
+  bookedByOrg: z.enum(["MEC", "CHAMBER_OF_COMMERCE"]).optional(),
+});
+
+const HOLD_FIELD_LABEL: Record<string, string> = {
+  exhibitorName: "exhibitor name",
+  company: "company",
+  phone: "phone",
+  email: "email",
+  address: "address",
+  city: "city",
+  productService: "product/service",
+  notes: "notes",
+  bookedByOrg: "booked by",
+};
+
+// General edit — separate from /holds/:id/approve, which only ever flips source. Lets an
+// admin fill in details a public request came in without (or correct a plain block's), same
+// PATCH-with-activity-log shape as the Booking equivalent in bookings.ts.
+holdsRouter.patch("/holds/:id", async (req: AuthedRequest, res) => {
+  const parsed = updateHoldSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const before = await prisma.hold.findUnique({ where: { id: req.params.id } });
+  if (!before) return res.status(404).json({ error: "Hold not found" });
+
+  const changedFields = Object.keys(parsed.data).filter(
+    (key) => (parsed.data as Record<string, unknown>)[key] !== (before as Record<string, unknown>)[key]
+  );
+
+  const hold = await prisma.$transaction(async (tx) => {
+    await tx.hold.update({ where: { id: req.params.id }, data: parsed.data });
+    if (changedFields.length > 0) {
+      await logActivity(tx, {
+        eventId: before.eventId,
+        holdId: before.id,
+        action: "EDITED",
+        description: `Updated ${changedFields.map((f) => HOLD_FIELD_LABEL[f] ?? f).join(", ")}`,
+        performedById: req.admin?.id,
+      });
+    }
+    return tx.hold.findUniqueOrThrow({
+      where: { id: req.params.id },
+      include: { stalls: { include: { stall: true } }, activity: { orderBy: { createdAt: "desc" } } },
+    });
+  });
+
+  res.json(hold);
+});
+
 // Approve a public request WITHOUT collecting payment yet: the stall stays exactly as
 // BLOCKED as it already is — the only change is source PUBLIC_REQUEST -> ADMIN, which moves
 // it out of the admin's "Requests" queue into the regular "Blocked" list. Payment is collected

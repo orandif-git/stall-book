@@ -9,12 +9,14 @@ interface Props {
 }
 
 // Public equivalent of the admin StallTooltip — same one-instance-shared-across-all-stalls
-// pattern, but only ever shows code/category/price/availability, since that's all a
-// PublicFloorPlanStall carries (no exhibitor name, no payment/balance data — the public
-// floorplan endpoint never sends that, see server/src/routes/public.ts).
+// pattern, but only ever shows code/category/price/availability (no contact name, no payment/
+// balance data — the public floorplan endpoint never sends that). `company` is the one
+// exception, and only when the event owner has opted into it (Setup tab) — see
+// server/src/routes/public.ts for where that's gated.
 export function PublicStallTooltip({ stall, x, y }: Props) {
   if (!stall) return null;
   const isAvailable = stall.status === "AVAILABLE";
+  const statusLine = isAvailable ? "Available — tap to select" : stall.company ? `Booked — ${stall.company}` : "Not available";
 
   return (
     <div
@@ -34,7 +36,7 @@ export function PublicStallTooltip({ stall, x, y }: Props) {
         className="mt-1.5 text-[9.5px] font-bold tracking-wider uppercase"
         style={{ color: isAvailable ? "#5ce0a5" : "#ff8b90" }}
       >
-        {isAvailable ? "● Available — tap to select" : "● Not available"}
+        ● {statusLine}
       </div>
     </div>
   );

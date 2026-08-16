@@ -52,7 +52,7 @@ export function PublicDetailsForm({ holdId, phone, token, selectedStalls, onSubm
     try {
       const { data } = await publicApi.patch<{ ok: true; requestId: string; reference: string; stallCodes: string[]; total: number }>(
         `/holds/${holdId}`,
-        { phone, token, exhibitorName, company: company || undefined, email: email || undefined, address, city, productService, notes: notes || undefined },
+        { phone, token, exhibitorName, company, email: email || undefined, address, city, productService, notes: notes || undefined },
       );
       onSubmitted(data);
     } catch (err) {
@@ -93,7 +93,7 @@ export function PublicDetailsForm({ holdId, phone, token, selectedStalls, onSubm
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="pd-company">Company</Label>
-        <Input id="pd-company" value={company} onChange={(e) => setCompany(e.target.value)} />
+        <Input id="pd-company" value={company} onChange={(e) => setCompany(e.target.value)} required />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="pd-phone">Phone</Label>

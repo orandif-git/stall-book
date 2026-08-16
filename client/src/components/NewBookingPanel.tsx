@@ -94,7 +94,7 @@ export function NewBookingPanel({
         stallIds: stalls.map((s) => s.id),
         holdId,
         exhibitorName,
-        company: company || undefined,
+        company,
         phone,
         email: email || undefined,
         gst: gst || undefined,
@@ -157,7 +157,7 @@ export function NewBookingPanel({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="nb-company">Company</Label>
-              <Input id="nb-company" value={company} onChange={(e) => setCompany(e.target.value)} />
+              <Input id="nb-company" value={company} onChange={(e) => setCompany(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="nb-phone">Phone</Label>

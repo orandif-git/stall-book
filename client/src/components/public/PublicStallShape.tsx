@@ -45,7 +45,12 @@ export function PublicStallShape({ stall, selected, onToggle, onHover }: Props) 
   return (
     <button
       type="button"
-      disabled={!isAvailable}
+      // Not a native `disabled` — disabled elements never fire mouse/pointer events in any
+      // browser, which silently killed the hover tooltip for unavailable stalls (this is
+      // exactly what the admin StallShape avoids by never disabling its button at all).
+      // aria-disabled keeps the same assistive-tech semantics without that side effect; the
+      // click itself is still gated below, same as before.
+      aria-disabled={!isAvailable}
       onClick={() => isAvailable && onToggle(stall)}
       onMouseEnter={(e) => onHover(stall, { x: e.clientX, y: e.clientY })}
       onMouseMove={(e) => onHover(stall, { x: e.clientX, y: e.clientY })}
@@ -53,7 +58,9 @@ export function PublicStallShape({ stall, selected, onToggle, onHover }: Props) 
       onPointerDown={(e) => {
         if (e.pointerType === "touch" || e.pointerType === "pen") onHover(stall, { x: e.clientX, y: e.clientY });
       }}
-      className="motion-safe:transition-transform motion-safe:duration-100 disabled:cursor-not-allowed enabled:hover:z-20 enabled:hover:scale-[1.14] enabled:active:scale-[1.05] focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+      className={`motion-safe:transition-transform motion-safe:duration-100 focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 ${
+        isAvailable ? "hover:z-20 hover:scale-[1.14] active:scale-[1.05]" : "cursor-not-allowed"
+      }`}
       style={{
         position: "absolute",
         left: stall.posX,

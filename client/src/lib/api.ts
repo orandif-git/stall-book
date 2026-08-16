@@ -30,6 +30,7 @@ export interface Event {
   startDate: string;
   endDate: string;
   layoutImageUrl?: string | null;
+  showCompanyPublicly: boolean;
 }
 
 export interface Category {
@@ -207,6 +208,7 @@ export interface PublicFloorPlanStall {
   shape: "rect" | "poly";
   points: number[];
   status: PublicStallStatus;
+  company: string | null;
 }
 
 export interface PublicFloorPlanData {

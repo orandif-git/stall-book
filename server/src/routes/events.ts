@@ -34,6 +34,7 @@ const eventSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   layoutImageUrl: z.string().optional(),
+  showCompanyPublicly: z.boolean().optional(),
 });
 
 eventsRouter.get("/", async (_req, res) => {

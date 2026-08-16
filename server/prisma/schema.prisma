@@ -79,6 +79,10 @@ model Event {
   // expressed in (traced from the reference drawing) — not a pixel/DOM size.
   canvasWidth   Float    @default(1500)
   canvasHeight  Float    @default(850)
+  // Off by default — the public floorplan endpoint never sends a booked stall's company name
+  // unless an admin explicitly opts in here (Setup tab), since that's otherwise-private
+  // business info about who's exhibiting where.
+  showCompanyPublicly Boolean @default(false)
   createdAt     DateTime @default(now())
 
   categories     Category[]

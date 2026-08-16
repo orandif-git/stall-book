@@ -69,20 +69,26 @@ publicRouter.get("/events/:slug", async (req, res) => {
 });
 
 // GET /api/public/events/:slug/floorplan — a stripped-down version of the admin /floorplan
-// endpoint: no exhibitor name/company/payment amounts/block reason, and BOOKED/BLOCKED both
-// collapse to a single UNAVAILABLE status. See server/src/routes/stalls.ts for the admin
-// version this deliberately does not reuse.
+// endpoint: no exhibitor contact name/payment amounts/block reason, and BOOKED/BLOCKED both
+// collapse to a single UNAVAILABLE status. The one deliberate exception is the booked stall's
+// company name — shown publicly as a simple exhibitor directory (confirmed with the user this
+// is wanted); a BLOCKED stall never has a Booking behind it, so this only ever surfaces for
+// actual confirmed bookings, never an admin's in-progress hold. See server/src/routes/stalls.ts
+// for the admin version this deliberately does not reuse.
 publicRouter.get("/events/:slug/floorplan", async (req, res) => {
   const event = await prisma.event.findUnique({
     where: { slug: req.params.slug },
-    select: { id: true, canvasWidth: true, canvasHeight: true, layoutImageUrl: true },
+    select: { id: true, canvasWidth: true, canvasHeight: true, layoutImageUrl: true, showCompanyPublicly: true },
   });
   if (!event) return res.status(404).json({ error: "Event not found" });
 
   await releaseExpiredHolds(event.id);
 
   const [stalls, decor] = await Promise.all([
-    prisma.stall.findMany({ where: { eventId: event.id }, include: { category: true } }),
+    prisma.stall.findMany({
+      where: { eventId: event.id },
+      include: { category: true, bookingLinks: { include: { booking: { select: { company: true } } } } },
+    }),
     prisma.floorPlanDecor.findMany({ where: { eventId: event.id } }),
   ]);
 
@@ -104,6 +110,7 @@ publicRouter.get("/events/:slug/floorplan", async (req, res) => {
       shape: s.shape,
       points: s.points,
       status: s.status === "AVAILABLE" ? ("AVAILABLE" as const) : ("UNAVAILABLE" as const),
+      company: event.showCompanyPublicly ? (s.bookingLinks[0]?.booking.company ?? null) : null,
     })),
     decor: decor.map((d) => ({
       id: d.id,
@@ -283,7 +290,7 @@ const submitHoldSchema = z.object({
   phone: z.string().min(1),
   token: z.string().min(1),
   exhibitorName: z.string().min(1),
-  company: z.string().optional(),
+  company: z.string().min(1, "Company is required"),
   email: z.string().email().optional().or(z.literal("")),
   address: z.string().min(1),
   city: z.string().min(1),
@@ -325,7 +332,7 @@ publicRouter.patch("/holds/:id", async (req, res) => {
       where: { id: hold.id },
       data: {
         exhibitorName: parsed.data.exhibitorName,
-        company: parsed.data.company || undefined,
+        company: parsed.data.company,
         email: parsed.data.email || undefined,
         address: parsed.data.address,
         city: parsed.data.city,

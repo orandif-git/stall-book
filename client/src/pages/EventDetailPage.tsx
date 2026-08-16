@@ -112,6 +112,15 @@ export function EventDetailPage() {
     load();
   }
 
+  // Same in-place-refresh pattern as refreshViewBooking — editing a hold's details shouldn't
+  // close the drawer, the admin should see the updated info land right there.
+  async function refreshViewBlocked(holdId: string) {
+    const { data } = await api.get<Hold>(`/holds/${holdId}`);
+    setViewBlocked(data);
+    setRefreshKey((k) => k + 1);
+    load();
+  }
+
   async function viewBlockedStall(stall: Stall) {
     const holdId = stall.holdLinks?.[0]?.hold.id;
     if (!holdId) return;
@@ -392,6 +401,7 @@ export function EventDetailPage() {
           onClose={() => setViewBooking(null)}
           onCancelled={afterChange}
           onPaymentAdded={() => refreshViewBooking(viewBooking.id)}
+          onUpdated={() => refreshViewBooking(viewBooking.id)}
         />
       )}
 
@@ -402,6 +412,7 @@ export function EventDetailPage() {
           onReleased={afterChange}
           onApproved={afterChange}
           onConfirmBooking={confirmHoldAsBooking}
+          onUpdated={() => refreshViewBlocked(viewBlocked.id)}
         />
       )}
     </div>

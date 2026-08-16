@@ -30,7 +30,7 @@ const createBookingSchema = z.object({
   // with the booking being created, instead of eagerly when "Confirm as booking" is clicked.
   holdId: z.string().optional(),
   exhibitorName: z.string().min(1),
-  company: z.string().optional(),
+  company: z.string().min(1, "Company is required"),
   phone: z.string().min(1),
   email: z.string().email().optional().or(z.literal("")),
   gst: z.string().optional(),
@@ -185,7 +185,7 @@ bookingsRouter.get("/bookings/:id", async (req, res) => {
 
 const updateBookingSchema = z.object({
   exhibitorName: z.string().min(1).optional(),
-  company: z.string().optional(),
+  company: z.string().min(1, "Company is required").optional(),
   phone: z.string().min(1).optional(),
   email: z.string().email().optional().or(z.literal("")),
   gst: z.string().optional(),
