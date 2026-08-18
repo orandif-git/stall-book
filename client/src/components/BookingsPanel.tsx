@@ -126,7 +126,7 @@ export function BookingsPanel({ eventId, onSelect, onSelectHold, refreshKey }: P
                 <TableRow>
                   <TableHead>Reference</TableHead>
                   <TableHead>Exhibitor</TableHead>
-                  <TableHead>Stalls</TableHead>
+                  <TableHead className="max-w-[220px]">Stalls</TableHead>
                   <TableHead>By</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-right">Paid</TableHead>
@@ -147,7 +147,9 @@ export function BookingsPanel({ eventId, onSelect, onSelectHold, refreshKey }: P
                         <div className="font-medium text-foreground">{d.name}</div>
                         <div className="text-xs text-muted-foreground">{d.phone}</div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{d.stallCodes}</TableCell>
+                      <TableCell className="max-w-[220px] truncate text-muted-foreground" title={d.stallCodes}>
+                        {d.stallCodes}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">{d.org}</TableCell>
                       <TableCell className="text-right">{d.total}</TableCell>
                       <TableCell className="text-right">{d.paid}</TableCell>
