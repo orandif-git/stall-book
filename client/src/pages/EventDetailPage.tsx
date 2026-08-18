@@ -62,6 +62,10 @@ export function EventDetailPage() {
   const [blockMode, setBlockMode] = useState(false);
   const [viewMode, setViewMode] = useState<MapViewMode>("layout");
   const [linkCopied, setLinkCopied] = useState(false);
+  // Pending public requests, surfaced as a badge on the Bookings tab so an admin doesn't have
+  // to click in to notice a new one — fetched independently of which tab is active, and
+  // refreshed on the same refreshKey bump every other action here already uses.
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
 
   async function copyBookingLink() {
     if (!event) return;
@@ -86,6 +90,13 @@ export function EventDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!event) return;
+    api.get<Hold[]>(`/events/${event.id}/holds`).then(({ data }) => {
+      setPendingRequestCount(data.filter((h) => h.source === "PUBLIC_REQUEST").length);
+    });
+  }, [event?.id, refreshKey]);
 
   function toggleSelect(stall: Stall) {
     setSelected((prev) => {
@@ -235,9 +246,17 @@ export function EventDetailPage() {
             </TabsTrigger>
             <TabsTrigger
               value="bookings"
-              className="rounded-full border border-border bg-card px-4 py-1.5 text-muted-foreground shadow-none data-active:border-primary data-active:bg-primary data-active:text-primary-foreground data-active:shadow-none dark:data-active:bg-primary dark:data-active:text-primary-foreground"
+              className="relative rounded-full border border-border bg-card px-4 py-1.5 text-muted-foreground shadow-none data-active:border-primary data-active:bg-primary data-active:text-primary-foreground data-active:shadow-none dark:data-active:bg-primary dark:data-active:text-primary-foreground"
             >
               Bookings
+              {pendingRequestCount > 0 && (
+                // iOS-style notification badge — floats over the corner rather than sitting
+                // inline with the label, so it reads the same regardless of the tab's own
+                // selected/unselected background.
+                <span className="absolute -top-1.5 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-white ring-2 ring-background">
+                  {pendingRequestCount}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger
               value="reports"
