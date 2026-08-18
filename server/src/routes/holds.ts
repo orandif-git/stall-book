@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { logActivity } from "../lib/activity.js";
+import { nextReference } from "../lib/reference.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 
 export const holdsRouter = Router();
@@ -44,6 +45,9 @@ holdsRouter.post("/events/:eventId/holds", async (req: AuthedRequest, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { stallIds, ...details } = parsed.data;
 
+  const event = await prisma.event.findUnique({ where: { id: req.params.eventId }, select: { startDate: true } });
+  if (!event) return res.status(404).json({ error: "Event not found" });
+
   const stalls = await prisma.stall.findMany({
     where: { id: { in: stallIds }, eventId: req.params.eventId },
   });
@@ -59,10 +63,12 @@ holdsRouter.post("/events/:eventId/holds", async (req: AuthedRequest, res) => {
   }
 
   const hold = await prisma.$transaction(async (tx) => {
+    const reference = await nextReference(tx, req.params.eventId, event.startDate);
     const created = await tx.hold.create({
       data: {
         eventId: req.params.eventId,
         ...details,
+        reference,
         stalls: { create: stallIds.map((stallId) => ({ stallId })) },
       },
       include: { stalls: { include: { stall: true } } },
